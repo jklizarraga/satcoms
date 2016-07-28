@@ -43,4 +43,3 @@ module MissionGeometry __precompile__()
   end
 
 end
-
