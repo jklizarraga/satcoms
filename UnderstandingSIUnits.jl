@@ -68,65 +68,39 @@ typealias ScalarQuantity{T} SIQuantity{T,0,0,0,0,0,0,0,0,0}
 
 SIQuantity{T<:Number}(x::T) = ScalarQuantity{T}(x)
 
-################################## Ranges ######################################
+export quantity, @quantity
+unit{T,m,kg,s,A,K,mol,cd,rad,sr}(x::SIQuantity{T,m,kg,s,A,K,mol,cd,rad,sr}     ) =     SIUnit{  m,kg,s,A,K,mol,cd,rad,sr}()
 
-# The following block can be expresed in a more concise way:
-abstract AbstractSIRange{T,m,kg,s,A,K,mol,cd,rad,sr} <: Range{SIQuantity{T,m,kg,s,A,K,mol,cd,rad,sr}}
+function quantity{S}(T,quant::SIQuantity{S})
+    quant.val == one(S) || error("Quantity value must be unity!")
+    quantity(T,unit(quant))
+end
+quantity{m,kg,s,A,K,mol,cd,rad,sr}(T::(@compat Union{Type,TypeVar}),unit::SIUnit{m,kg,s,A,K,mol,cd,rad,sr}) = SIQuantity{T,m,kg,s,A,K,mol,cd,rad,sr}
 
-immutable SIRange{R<:Range,T<:Real,m,kg,s,A,K,mol,cd,rad,sr} <: AbstractSIRange{T,m,kg,s,A,K,mol,cd,rad,sr}
-    val::R
+tup{  m,kg,s,A,K,mol,cd,rad,sr}(u::SIUnit{      m,kg,s,A,K,mol,cd,rad,sr}) = (m,kg,s,A,K,mol,cd,rad,sr)
+tup{T,m,kg,s,A,K,mol,cd,rad,sr}(u::SIQuantity{T,m,kg,s,A,K,mol,cd,rad,sr}) = (m,kg,s,A,K,mol,cd,rad,sr)
+
+macro quantity(expr,unit)
+    esc(:(SIUnits.SIQuantity{$expr,SIUnits.tup($unit)...}))
 end
 
-# The following line produces the following error:
-#
-# r = 1.0:6.0;
-# siRange = SIRange{typeof(r), eltype(r), 0,0,0,0,0,0,0,0,0}(r)
-# > Error showing value of type SIRange{FloatRange{Float64},Float64,0,0,0,0,0,0,0,0,0}:
-# >   ERROR: StackOverflowError:
-# >    in length at abstractarray.jl:61 (repeats 2 times)
-#
-# However, if the output is suppressed in the REPL by adding a semicolon there is no error:
-#
-# siRange = SIRange{typeof(r), eltype(r), 0,0,0,0,0,0,0,0,0}(r);
-#
-# > typeof(siRange)
-# SIRange{FloatRange{Float64},Float64,0,0,0,0,0,0,0,0,0}
-#
-# > siRange.val
-# 1.0:1.0:6.0
-
-# The following line produces the following error:
-# siRange = SIRange(r)
-# > MethodError: `convert` has no method matching convert(::Type{SIRange{R<:Range{T},T<:Number,m,kg,s,A,K,mol,cd,rad,sr}}, ::FloatRange{Float64})
-# > This may have arisen from a call to the constructor SIRange{R<:Range{T},T<:Number,m,kg,s,A,K,mol,cd,rad,sr}(...),
-# > since type constructors fall back to convert methods.
-# > Closest candidates are:
-# >   call{T}(::Type{T}, ::Any)
-# >   convert{T}(::Type{T}, !Matched::T)
-# >  in call at essentials.jl:56
-# >  in include_string at loading.jl:288
-# >  in eval at C:\Users\Juan Lizarraga\.julia\v0.4\Atom\src\Atom.jl:3
-# >  [inlined code] from C:\Users\Juan Lizarraga\.julia\v0.4\Atom\src\eval.jl:39
-# >  in anonymous at C:\Users\Juan Lizarraga\.julia\v0.4\Atom\src\eval.jl:108
-# >  in withpath at C:\Users\Juan Lizarraga\.julia\v0.4\Requires\src\require.jl:37
-# >  in withpath at C:\Users\Juan Lizarraga\.julia\v0.4\Atom\src\eval.jl:53
-# >  [inlined code] from C:\Users\Juan Lizarraga\.julia\v0.4\Atom\src\eval.jl:107
-# >  in anonymous at task.jl:58
-
-# For convenience an outer constructor can be defined:
-
-SIRange{R<:Range}(r::R) = SIRange{typeof(r), eltype(r), 0,0,0,0,0,0,0,0,0}(r)
 
 ################################### Units ######################################
 
 immutable SIUnit{m,kg,s,A,K,mol,cd,rad,sr} <: Number
 end
 
-            unit{T,m,kg,s,A,K,mol,cd,rad,sr}(x::AbstractSIRange{T,m,kg,s,A,K,mol,cd,rad,sr}) =     SIUnit{  m,kg,s,A,K,mol,cd,rad,sr}()
-            unit{T,m,kg,s,A,K,mol,cd,rad,sr}(x::SIQuantity{T,m,kg,s,A,K,mol,cd,rad,sr}     ) =     SIUnit{  m,kg,s,A,K,mol,cd,rad,sr}()
-quantitydatatype{T,m,kg,s,A,K,mol,cd,rad,sr}(x::AbstractSIRange{T,m,kg,s,A,K,mol,cd,rad,sr}) = SIQuantity{T,m,kg,s,A,K,mol,cd,rad,sr}
-
 typealias UnitTuple NTuple{9,Int}
+
+tup2u(tup::UnitTuple) = SIUnit{tup[1], tup[2], tup[3], tup[4], tup[5], tup[6], tup[7], tup[8], tup[9]}
+    -(tup::UnitTuple) =      (-tup[1],-tup[2],-tup[3],-tup[4],-tup[5],-tup[6],-tup[7],-tup[8],-tup[9])
+
+for op in (:-,:*,:+)
+    @eval function $(op)(tup1::UnitTuple,tup2::UnitTuple)
+        ($(op)(tup1[1],tup2[1]),$(op)(tup1[2],tup2[2]),$(op)(tup1[3],tup2[3]),$(op)(tup1[4],tup2[4]),$(op)(tup1[5],tup2[5]),
+            $(op)(tup1[6],tup2[6]),$(op)(tup1[7],tup2[7]),$(op)(tup1[8],tup2[8]),$(op)(tup1[9],tup2[9]))
+    end
+end
 
 ################################################################################
 
@@ -179,27 +153,85 @@ one{T,m,kg,s,A,K,mol,cd,rad,sr}(::Type{SIQuantity{T,m,kg,s,A,K,mol,cd,rad,sr}}) 
 # before the new definition.
 #
 # Therefore:
-
-promote_rule{sym      ,m,kg,s,A,K,mol,cd,rad,sr}(x::Type{Irrational{sym}},y::Type{SIUnit{m,kg,s,A,K,mol,cd,rad,sr}}) = SIQuantity{Irrational{sym},m,kg,s,A,K,mol,cd,rad,sr}
-promote_rule{          m,kg,s,A,K,mol,cd,rad,sr}(x::Type{Bool}           ,y::Type{SIUnit{m,kg,s,A,K,mol,cd,rad,sr}}) = SIQuantity{Bool           ,m,kg,s,A,K,mol,cd,rad,sr}
-promote_rule{T<:Number,m,kg,s,A,K,mol,cd,rad,sr}(x::Type{T   }           ,y::Type{SIUnit{m,kg,s,A,K,mol,cd,rad,sr}}) = SIQuantity{T              ,m,kg,s,A,K,mol,cd,rad,sr}
+## (Note: It is to be noticed that as the units of the result depend on the operation then it makes no sense to keep the units and instead both operands are propomoted to a scalar.)
+promote_rule{sym      ,m,kg,s,A,K,mol,cd,rad,sr}(x::Type{Irrational{sym}},y::Type{SIUnit{m,kg,s,A,K,mol,cd,rad,sr}}) = ScalarQuantity{Irrational{sym}}
+promote_rule{          m,kg,s,A,K,mol,cd,rad,sr}(x::Type{Bool           },y::Type{SIUnit{m,kg,s,A,K,mol,cd,rad,sr}}) = ScalarQuantity{Bool           }
+promote_rule{T<:Number,m,kg,s,A,K,mol,cd,rad,sr}(x::Type{T              },y::Type{SIUnit{m,kg,s,A,K,mol,cd,rad,sr}}) = ScalarQuantity{T              }
+## The promotion rules need to be supported by the appropriate conversion methods:
+convert{T<:Number,m,kg,s,A,K,mol,cd,rad,sr}(::Type{SIQuantity{T,m,kg,s,A,K,mol,cd,rad,sr}},val::Number                          ) = SIQuantity{T,m,kg,s,A,K,mol,cd,rad,sr}(convert(T,  val))
+convert{T<:Number,m,kg,s,A,K,mol,cd,rad,sr}(::Type{SIQuantity{T                         }},  x::SIUnit{m,kg,s,A,K,mol,cd,rad,sr}) = SIQuantity{T,m,kg,s,A,K,mol,cd,rad,sr}(    one(T)      )
+convert{T<:Number                         }(::Type{SIQuantity{T                         }},  x::T                               ) = ScalarQuantity{T}(x)
+convert{T<:Number,S<:Number               }(::Type{SIQuantity{T                         }},  x::S                               ) = convert(ScalarQuantity{T},convert(T,x))
 
 # Same applies to SIQuantity:
-
+## Promotions for operations between a basic type and a SIQuantity
 promote_rule{sym,T      ,m,kg,s,A,K,mol,cd,rad,sr}(x::Type{Irrational{sym}},y::Type{SIQuantity{T,m,kg,s,A,K,mol,cd,rad,sr}}) = SIQuantity{promote_type(Irrational{sym},T)}
-promote_rule{          S,m,kg,s,A,K,mol,cd,rad,sr}(x::Type{Bool}           ,y::Type{SIQuantity{S,m,kg,s,A,K,mol,cd,rad,sr}}) = SIQuantity{promote_type(Bool,S)           }
-promote_rule{T<:Number,S,m,kg,s,A,K,mol,cd,rad,sr}(x::Type{T   }           ,y::Type{SIQuantity{S,m,kg,s,A,K,mol,cd,rad,sr}}) = SIQuantity{promote_type(   T,S)           }
+promote_rule{          S,m,kg,s,A,K,mol,cd,rad,sr}(x::Type{Bool           },y::Type{SIQuantity{S,m,kg,s,A,K,mol,cd,rad,sr}}) = SIQuantity{promote_type(           Bool,S)}
+promote_rule{T<:Number,S,m,kg,s,A,K,mol,cd,rad,sr}(x::Type{T              },y::Type{SIQuantity{S,m,kg,s,A,K,mol,cd,rad,sr}}) = SIQuantity{promote_type(              T,S)}
+## Promotions for operations between two SIQuantities
+promote_rule{T,S,m ,kg ,s ,A ,K ,mol ,cd ,rad ,sr                                   }(x::Type{SIQuantity{T                                  }},y::Type{SIQuantity{S,m ,kg ,s ,A ,K ,mol ,cd ,rad ,sr }}) = SIQuantity{promote_type(T,S)}
+promote_rule{T,S,mS,kgS,sS,AS,KS,molS,cdS,radS,srS,mT,kgT,sT,AT,KT,molT,cdT,radT,srT}(A::Type{SIQuantity{T,mT,kgT,sT,AT,KT,molT,cdT,radT,srT}},B::Type{SIQuantity{S,mS,kgS,sS,AS,KS,molS,cdS,radS,srS}}) = SIQuantity{promote_type(T,S)}
+promote_rule{T,  mS,kgS,sS,AS,KS,molS,cdS,radS,srS,mT,kgT,sT,AT,KT,molT,cdT,radT,srT}(A::Type{SIQuantity{T,mT,kgT,sT,AT,KT,molT,cdT,radT,srT}},B::Type{SIUnit{      mS,kgS,sS,AS,KS,molS,cdS,radS,srS}}) = SIQuantity{T}
+## The promotion rules need to be supported by the appropriate conversion methods:
+convert{T<:Number,S,m,kg,s,A,K,mol,cd,rad,sr}(::Type{SIQuantity{T}},x::SIQuantity{S,m,kg,s,A,K,mol,cd,rad,sr}) = SIQuantity{T,m,kg,s,A,K,mol,cd,rad,sr}(convert(T,x.val))
+convert{T<:Number                           }(::Type{SIQuantity{T}},x::SIQuantity{T}                         ) = x
+# Unlike most other types, the promotion of two identitical SIQuantities is
+# not that type itself. As such, the promote_type behavior itself must be
+# overridden by overloading the method. C.f. https://github.com/Keno/SIUnits.jl/issues/27
+promote_type{T,m,kg,s,A,K,mol,cd,rad,sr}( ::Type{SIQuantity{T,m,kg,s,A,K,mol,cd,rad,sr}}, ::Type{SIQuantity{T,m,kg,s,A,K,mol,cd,rad,sr}}) = SIQuantity{T}
 
-promote_rule{T,S,mS,kgS,sS,AS,KS,molS,cdS,radS,srS,mT,kgT,sT,AT,KT,molT,cdT,radT,srT}(A::Type{SIQuantity{T,mT,kgT,sT,AT,KT,molT,cdT,radT,srT}}, B::Type{SIQuantity{S,mS,kgS,sS,AS,KS,molS,cdS,radS,srS}}) = SIQuantity{promote_type(T,S)}
-promote_rule{T,  mS,kgS,sS,AS,KS,molS,cdS,radS,srS,mT,kgT,sT,AT,KT,molT,cdT,radT,srT}(A::Type{SIQuantity{T,mT,kgT,sT,AT,KT,molT,cdT,radT,srT}}, B::Type{SIUnit{      mS,kgS,sS,AS,KS,molS,cdS,radS,srS}}) = SIQuantity{T}
-
-# The promotion rules need to be supported by the appropriate conversion methods:
-convert{T          ,m,kg,s,A,K,mol,cd,rad,sr}(::Type{SIQuantity{T,m,kg,s,A,K,mol,cd,rad,sr}},val::Number                                ) = SIQuantity{T,m,kg,s,A,K,mol,cd,rad,sr}(convert(T,  val))
-convert{T<:Number,S,m,kg,s,A,K,mol,cd,rad,sr}(::Type{SIQuantity{T}                         },  x::SIQuantity{S,m,kg,s,A,K,mol,cd,rad,sr}) = SIQuantity{T,m,kg,s,A,K,mol,cd,rad,sr}(convert(T,x.val))
-convert{T<:Number  ,m,kg,s,A,K,mol,cd,rad,sr}(::Type{SIQuantity{T}                         },  x::SIUnit{      m,kg,s,A,K,mol,cd,rad,sr}) = SIQuantity{T,m,kg,s,A,K,mol,cd,rad,sr}(    one(T      ))
-convert{T<:Number                           }(::Type{SIQuantity{T}                         },  x::T                                     ) = ScalarQuantity{T}(x)
-convert{T<:Number,S<:Number                 }(::Type{SIQuantity{T}                         },  x::S                                     ) = convert(SIQuantity{T},convert(T,x))
-convert{T<:Number                           }(::Type{SIQuantity{T}                         },  x::SIQuantity{T}                         ) = x
-
-zero(x::SIQuantity) = zero(x.val) * unit(x)
+# zero(x::SIQuantity) = zero(x.val) * unit(x)
 #zero{T,m,kg,s,A,K,mol,cd,rad,sr}(::Type{SIQuantity{T,m,kg,s,A,K,mol,cd,rad,sr}}) = zero(T) * SIUnit{m,kg,s,A,K,mol,cd,rad,sr}()
+
+
+################################## Ranges ######################################
+
+# The following block can be expresed in a more concise way:
+abstract AbstractSIRange{T,m,kg,s,A,K,mol,cd,rad,sr} <: Range{SIQuantity{T,m,kg,s,A,K,mol,cd,rad,sr}}
+
+immutable SIRange{R<:Range,T<:Real,m,kg,s,A,K,mol,cd,rad,sr} <: AbstractSIRange{T,m,kg,s,A,K,mol,cd,rad,sr}
+    val::R
+end
+
+# The following line produces the following error:
+#
+# r = 1.0:6.0;
+# siRange = SIRange{typeof(r), eltype(r), 0,0,0,0,0,0,0,0,0}(r)
+# > Error showing value of type SIRange{FloatRange{Float64},Float64,0,0,0,0,0,0,0,0,0}:
+# >   ERROR: StackOverflowError:
+# >    in length at abstractarray.jl:61 (repeats 2 times)
+#
+# However, if the output is suppressed in the REPL by adding a semicolon there is no error:
+#
+# siRange = SIRange{typeof(r), eltype(r), 0,0,0,0,0,0,0,0,0}(r);
+#
+# > typeof(siRange)
+# SIRange{FloatRange{Float64},Float64,0,0,0,0,0,0,0,0,0}
+#
+# > siRange.val
+# 1.0:1.0:6.0
+
+# The following line produces the following error:
+# siRange = SIRange(r)
+# > MethodError: `convert` has no method matching convert(::Type{SIRange{R<:Range{T},T<:Number,m,kg,s,A,K,mol,cd,rad,sr}}, ::FloatRange{Float64})
+# > This may have arisen from a call to the constructor SIRange{R<:Range{T},T<:Number,m,kg,s,A,K,mol,cd,rad,sr}(...),
+# > since type constructors fall back to convert methods.
+# > Closest candidates are:
+# >   call{T}(::Type{T}, ::Any)
+# >   convert{T}(::Type{T}, !Matched::T)
+# >  in call at essentials.jl:56
+# >  in include_string at loading.jl:288
+# >  in eval at C:\Users\Juan Lizarraga\.julia\v0.4\Atom\src\Atom.jl:3
+# >  [inlined code] from C:\Users\Juan Lizarraga\.julia\v0.4\Atom\src\eval.jl:39
+# >  in anonymous at C:\Users\Juan Lizarraga\.julia\v0.4\Atom\src\eval.jl:108
+# >  in withpath at C:\Users\Juan Lizarraga\.julia\v0.4\Requires\src\require.jl:37
+# >  in withpath at C:\Users\Juan Lizarraga\.julia\v0.4\Atom\src\eval.jl:53
+# >  [inlined code] from C:\Users\Juan Lizarraga\.julia\v0.4\Atom\src\eval.jl:107
+# >  in anonymous at task.jl:58
+
+# For convenience an outer constructor can be defined:
+
+#SIRange{R<:Range}(r::R) = SIRange{typeof(r), eltype(r), 0,0,0,0,0,0,0,0,0}(r)
+
+# unit{T,m,kg,s,A,K,mol,cd,rad,sr}(x::AbstractSIRange{T,m,kg,s,A,K,mol,cd,rad,sr}) =     SIUnit{  m,kg,s,A,K,mol,cd,rad,sr}()
+# quantitydatatype{T,m,kg,s,A,K,mol,cd,rad,sr}(x::AbstractSIRange{T,m,kg,s,A,K,mol,cd,rad,sr}) = SIQuantity{T,m,kg,s,A,K,mol,cd,rad,sr}
