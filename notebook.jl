@@ -1,42 +1,30 @@
-#using SIBaseUnits
+include("SIBaseUnits.jl")
+include("SIQuantities.jl")
+using SIBaseUnits
+using SIQuantities
 
-x = SIBaseUnits.SIUnit{100,4,3,2,1,-1,-2,-3,-4}()
+limit = 1e7
+@time [^(SIUnit{1,2,3,4,5,6,7,8,9}(),20) for i=1:limit]
+@time [SIBaseUnits.power(SIUnit{1,2,3,4,5,6,7,8,9}(),20) for i=1:limit]
 
-# This is an auxiliary macro to be used in the writemime() method below. It uses the
-# "num" and "den" variables from the calling function scope.
-# In summary the macro takes x corresponding to the exponent of each of the base units
-# and depending on whether it is positive or negative it adds it to the nominator or
-# denominator string ""\\text{",$(string(x)),"\}". regarding the exponent if it is
-# +/- 1 then it adds an empty space otherwise it adds the string "^{",abs($x),"}"
-# macro l(x)
-#     esc(quote
-#           $x != 0 && push!($x>0?num:den,string("\\text{",$(string(x)),"\}",abs($x) == 1 ? " " : string("^{",abs($x),"}")))
-#         end)
-# end
-#
-# function Base.Multimedia.writemime{m,kg,s,A,K,mol,cd,rad,sr}(io::IO,::MIME"text/mathtex+latex",x::SIUnit{m,kg,s,A,K,mol,cd,rad,sr})
-#     num = ASCIIString[]
-#     den = ASCIIString[]
-#     @l m
-#     @l kg
-#     @l s
-#     @l A
-#     @l K
-#     @l mol
-#     @l cd
-#     @l rad
-#     @l sr
-#     if !isempty(den)
-#         if isempty(num)
-#             write(io,"\\frac{1}{",join(den,"\\;"),"}")
-#         else
-#             write(io,"\\frac{",join(num,"\\;"),"}{",join(den,"\\;"),"}")
-#         end
-#     else
-#         write(io,join(num,"\\;"))
-#     end
-#
-# end
+unit = SIUnit{100,4,3,2,1,-1,-2,-3,-4}()
+val = 15
+quant = SIQuantity{typeof(val),1,2,3,4,5,6,7,8,9}(val)
+
+siquantity(TypeVar(:Float64), unit)
+typeof(unit)
+typeof(typeof(unit))
+
+@siquantity(Float64, unit)
+
+val = 1.0
+quant = SIQuantity{typeof(val),1,2,3,4,5,6,7,8,9}(val)
+siquantity(TypeVar(:Int64), quant)
+
+val = 100
+quant = SIQuantity{typeof(val),1,2,3,4,5,6,7,8,9}(val)
+@which(one(quant))
+@which(one(SIQuantity{typeof(val),1,2,3,4,5,6,7,8,9}))
 
 # macro parametersandvalues(tup...)
 #     ex = esc(quote
@@ -67,41 +55,3 @@ x = SIBaseUnits.SIUnit{100,4,3,2,1,-1,-2,-3,-4}()
 #     #println(evaluationstring)
 #     return parse("quote\n$evaluationstring\nend")
 # end
-
-# The template code line that needs to be "copied" 9 times is:
-#   paramName != 0 && push!(paramName>0?num:den,string("\\text{",paramNameString,"}",abs(paramName) == 1 ? " " : string("^{",abs(paramName),"}")))
-# For example: paramName = m; paramNameString = "m"
-#   m != 0 && push!(m >0?num:den,string("\\text{","m","}",abs(m) == 1 ? " " : string("^{",abs(m),"}")))
-macro generatenumanddencode(unittup...)
-    evaluationstring = ASCIIString[]
-
-    push!(evaluationstring, "quote")
-    for unit in unittup
-        codeline = "$unit != 0 && push!($unit>0?num:den,string(\"\\\\text{$unit}\",abs($unit) == 1 ? \"\" : string(\"^{\",abs($unit),\"}\")))"
-        push!(evaluationstring, codeline)
-    end
-    push!(evaluationstring, "end")
-
-    return eval(parse(join(evaluationstring, "\n")))
-end
-
-function latexstring{m,kg,s,A,K,mol,cd,rad,sr}(::SIBaseUnits.SIUnit{m,kg,s,A,K,mol,cd,rad,sr})
-    num = ASCIIString[]
-    den = ASCIIString[]
-    out = ""
-
-    @generatenumanddencode(m,kg,s,A,K,mol,cd,rad,sr)
-
-    if !isempty(den)
-        if isempty(num)
-            out = string("\\frac{1}{",join(den,"\\;"),"}")
-        else
-            out = string("\\frac{",join(num,"\\;"),"}{",join(den,"\\;"),"}")
-        end
-    else
-        out = string(join(num,"\\;"))
-    end
-    return out
-end
-
-println(latexstring(x))
