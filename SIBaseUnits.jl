@@ -188,7 +188,7 @@ module SIBaseUnits
       write(io, latexstring(x))
   end
 
-end
+end #module
 
 #Original code that was removed:
 
