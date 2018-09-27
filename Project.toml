@@ -1,6 +1,0 @@
-authors = ["jlizarraga "]
-name = "Satcoms"
-uuid = "120b86b4-be8b-11e8-13a7-33053556ea89"
-version = "0.1.0"
-
-[deps]

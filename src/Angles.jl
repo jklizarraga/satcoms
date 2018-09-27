@@ -1,21 +1,44 @@
+# Usage:
+# include("./src/Angles.jl")
+# using Main.Angles
+# for op in Main.Angles.operationsTrigoInverse
+#   @eval $op(x::Real) = Main.Angles.$op(x)
+# end
+
 isdefined(Base, :__precompile__) && __precompile__()
 
-module Angles
+baremodule Angles
 
-operationsUnary         = (:+, :-, :rem2pi, :mod2pi)
-operationsBetweenAngles = (:+, :-)
-operationsAngleScalar   = (:*, :/, :÷, :^, :%, :rem, :mod)
-operationsScalarAngle   = (:*, :\)
-operationsComparison    = (Symbol("=="), :≠, :<, :≤, :>, :≥)
-operationsTrigonometric = (:sin, :cos, :tan, :cot, :sec, :csc, :sinc, :cosc, :sinpi, :cospi)
+using Base
 
-operations = unique((operationsUnary..., operationsBetweenAngles..., operationsAngleScalar..., operationsScalarAngle..., operationsComparison..., operationsTrigonometric...))
+eval(x) = Core.eval(Mod, x)
+include(p) = Base.include(Mod, p)
+
+const operationsUnary         = (:+, :-, :rem2pi, :mod2pi)
+const operationsBetweenAngles = (:+, :-)
+const operationsAngleScalar   = (:*, :/, :÷, :^, :%, :rem, :mod)
+const operationsScalarAngle   = (:*, :\)
+const operationsComparison    = (Symbol("=="), :≠, :<, :≤, :>, :≥)
+const operationsTrigonometric = ( :sin,  :cos,  :tan,  :csc,  :sec,  :cot)
+const operationsTrigoInvRad   = (:asin, :acos, :atan, :acsc, :asec, :acot)
+const operationsTrigoInvDeg   = Symbol.(operationsTrigoInvRad,"d")
+const operationsTrigoInverse  = (operationsTrigoInvRad..., operationsTrigoInvDeg...)
+const operationsTrigoOther    = (:sinpi, :cospi, :sinc, :cosc, :sincos)
+
+const operations = unique((operationsUnary..., operationsBetweenAngles..., operationsAngleScalar..., operationsScalarAngle..., operationsComparison..., operationsTrigonometric..., operationsTrigoOther...))
 
 for op in operations
   @eval import Base: $op
   @eval export $op
 end
 
+for op in operationsTrigoInverse
+  @eval export $op
+end
+
+export operationsTrigoInverse
+
+import Base: deg2rad, rad2deg
 import Base: convert, promote_rule, show
 
 abstract type Angle end
@@ -27,14 +50,14 @@ for angularUnits in (:Degrees, :Radians)
   @eval begin
           export $angularUnits
 
-          struct $angularUnits{T<:Number} <: Angle
+          struct $angularUnits{T<:Real} <: Angle
             val::T
           end
 
-          convert(::Type{T}               , x::$angularUnits{T}) where {T<:Number}           = x.val
-          convert(::Type{$angularUnits{T}}, x::$angularUnits{S}) where {T<:Number,S<:Number} = $angularUnits(T(x.val))
+          convert(::Type{T}               , x::$angularUnits{T}) where {T<:Real}           = x.val
+          convert(::Type{$angularUnits{T}}, x::$angularUnits{S}) where {T<:Real,S<:Real} = $angularUnits(T(x.val))
 
-          promote_rule(::Type{$angularUnits{T}},::Type{$angularUnits{S}}) where {T<:Number,S<:Number} = $angularUnits{promote_type(T,S)}
+          promote_rule(::Type{$angularUnits{T}},::Type{$angularUnits{S}}) where {T<:Real,S<:Real} = $angularUnits{promote_type(T,S)}
 
           # Pretty printing
           Base.show(io::IO,                     x::$angularUnits{T}) where {T} = print(io, x.val, asciiRepresentation[$(String(angularUnits))])
@@ -44,10 +67,12 @@ for angularUnits in (:Degrees, :Radians)
 end
 
 # Conversion between the different angles.
-convert(::Type{Radians{T}}, x::Degrees) where {T<:Number} = Radians(x.val * (π / 180.))
-convert(::Type{Degrees{T}}, x::Radians) where {T<:Number} = Degrees(x.val * (π \ 180.))
+deg2rad(x::Degrees) = Radians(deg2rad(x.val))
+rad2deg(x::Radians) = Degrees(rad2deg(x.val))
+convert(::Type{Radians{T}}, x::Degrees) where {T<:Real} = deg2rad(x)
+convert(::Type{Degrees{T}}, x::Radians) where {T<:Real} = rad2deg(x)
 
-promote_rule(::Type{Degrees{T}},::Type{Radians{S}}) where {T<:Number,S<:Number} = Radians{promote_type(T,S)}
+promote_rule(::Type{Degrees{T}},::Type{Radians{S}}) where {T<:Real,S<:Real} = Radians{promote_type(T,S)}
 
 # New methods for the operations.
 
@@ -67,11 +92,11 @@ end
 
 ### Operations with scalars
 for op in operationsAngleScalar
-  @eval $op(x::T, scalar::Number) where {T<:Angle} = T($op(x.val, scalar))
+  @eval $op(x::T, scalar::Real) where {T<:Angle} = T($op(x.val, scalar))
 end
 
 for op in operationsScalarAngle
-  @eval $op(scalar::Number, x::T) where {T<:Angle} = T($op(scalar,x.val))
+  @eval $op(scalar::Real, x::T) where {T<:Angle} = T($op(scalar,x.val))
 end
 
 ## Comparison (between angles) operations
@@ -85,5 +110,29 @@ for fun in operationsTrigonometric
   @eval $fun(x::Radians) = $fun(x.val)
   @eval $fun(x::Degrees) = $(Symbol(fun,'d'))(x.val)
 end
+
+for fun in operationsTrigoInvRad
+  @eval $fun(x::Real) = Radians(Base.Math.$fun(x))
+end
+
+for fun in operationsTrigoInvDeg
+  @eval $fun(x::Real) = Degrees(Base.Math.$fun(x))
+end
+
+atan( y::Real, x::Real) = Radians(Base.Math.atan( x,y))
+atand(y::Real, x::Real) = Degrees(Base.Math.atand(x,y))
+
+for fun in operationsTrigoOther
+  @eval $fun(x::Radians) = $fun(x.val)
+end
+
+sincos(x::Degrees) = (sin(x),cos(x))
+
+# Syntactic sugar
+const degrees = deg = º = Degrees
+const radians = rad = Radians
+export degrees, deg, º, radians, rad
+
+*(x::Real, y::Type{T}) where {T<:Angle} = T(x)
 
 end

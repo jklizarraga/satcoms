@@ -60,9 +60,6 @@ import Base: $((:+,:-))
 #   @eval $op(scalar::Number, x::Radians) = Radians($op(scalar,x.val))
 #   @eval $op(scalar::Number, x::Degrees) = Degrees($op(scalar,x.val))
 # end
-import Base: ==, +, -, *, /, ÷, ^, \, %, rem, mod, rem2pi, mod2pi
-import Base: sin, cos, tan, cot, sec, csc, sinc, cosc, sinpi, cospi
-import Base: convert, promote_rule, show
 
 abstract type Angle end
 
@@ -70,24 +67,28 @@ asciiRepresentation = Dict("Degrees"=>"º"   , "Radians"=>"rad")
  htmlRepresentation = Dict("Degrees"=>"&deg", "Radians"=>"rad")
 
 for angularUnits in (:Degrees, :Radians)
-  angularUnits = :Degrees
-  macroexpand(Main,
-    quote @eval begin
-                  struct $angularUnits{T<:Number} <: Angle
-                    val::T
-                  end
+  @eval begin
+          export $angularUnits
 
-                  convert(::Type{T}               , x::$angularUnits{T}) where {T<:Number}           = x.val
-                  convert(::Type{$angularUnits{T}}, x::$angularUnits{S}) where {T<:Number,S<:Number} = $angularUnits(T(x.val))
+          struct $angularUnits{T<:Real} <: Angle
+            val::T
+          end
 
-                  promote_rule(::Type{$angularUnits{T}},::Type{$angularUnits{S}}) where {T<:Number,S<:Number} = $angularUnits{promote_type(T,S)}
+          convert(::Type{T}               , x::$angularUnits{T}) where {T<:Real}           = x.val
+          convert(::Type{$angularUnits{T}}, x::$angularUnits{S}) where {T<:Real,S<:Real} = $angularUnits(T(x.val))
 
-                  Base.show(io::IO,                     x::$angularUnits{T}) where {T} = print(io, x.val, asciiRepresentation[$(String(angularUnits))])
-                  Base.show(io::IO, ::MIME"text/plain", x::$angularUnits{T}) where {T} = print(io, "Angle in ",$(String(angularUnits)),"{$T}: ", x, "\n")
-                  Base.show(io::IO, ::MIME"text/html" , x::$angularUnits{T}) where {T} = print(io, x.val, htmlRepresentation[$(String(angularUnits))] ," [<code>",$(String(angularUnits)),"{$T}</code>]")
-              end
-    end)
+          promote_rule(::Type{$angularUnits{T}},::Type{$angularUnits{S}}) where {T<:Real,S<:Real} = $angularUnits{promote_type(T,S)}
+
+          # Pretty printing
+          Base.show(io::IO,                     x::$angularUnits{T}) where {T} = print(io, x.val, asciiRepresentation[$(String(angularUnits))])
+          Base.show(io::IO, ::MIME"text/plain", x::$angularUnits{T}) where {T} = print(io, "Angle in ",$(String(angularUnits)),"{$T}: ", x, "\n")
+          Base.show(io::IO, ::MIME"text/html" , x::$angularUnits{T}) where {T} = print(io, x.val, htmlRepresentation[$(String(angularUnits))] ," [<code>",$(String(angularUnits)),"{$T}</code>]")
+        end
 end
+
+f(x::Real) = Base.Math.atand(x)
+atand(x::Real) = test.Degrees(f(x))
+atand(0)
 
 using Main.Angles
 x = Degrees(5)
@@ -154,3 +155,10 @@ quant = SIQuantity{typeof(val),1,2,3,4,5,6,7,8,9}(val)
 #     #println(evaluationstring)
 #     return parse("quote\n$evaluationstring\nend")
 # end
+
+
+include("./src/Angles.jl")
+using Main.Angles
+for op in Main.Angles.operationsTrigoInverse
+  @eval $op(x::Real) = Main.Angles.$op(x)
+end
