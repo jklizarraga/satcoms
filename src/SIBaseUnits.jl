@@ -1,248 +1,145 @@
-isdefined(Base, :__precompile__) && __precompile__()
+# isdefined(Base, :__precompile__) && __precompile__()
 
-module SIBaseUnits
+baremodule SIBaseUnits
 
-  import Base: ==, +, -, *, /, //, ^
-  import Base: show, inv, writemime
+using Base
+import Base: +, -, *, /, \, ^, inv
+import Base: show
+export SIBaseUnit, scalar, meter, m, kilogram, kg, seconds, s, ampere, A, kelvin, K, mole, mol, candela, cd
+export +, -, *, /, \, ^
 
-  export SIUnit
+eval(x) = Core.eval(Mod, x)
+include(p) = Base.include(Mod, p)
 
-  immutable SIUnit{m,kg,s,A,K,mol,cd,rad,sr} <: Number
-  end
+const UnitTuple = NTuple{7,Int}
 
-  typealias UnitTuple NTuple{9,Int}
+struct SIBaseUnit{m,kg,s,A,K,mol,cd}
+    SIBaseUnit{m,kg,s,A,K,mol,cd}() where {m,kg,s,A,K,mol,cd} = isa((m,kg,s,A,K,mol,cd), NTuple{7,Int}) ? new() : error("An SIBaseUnit{m,kg,s,A,K,mol,cd} can only be constructed with integers")
+end
+SIBaseUnit(m::Int,kg::Int,s::Int,A::Int,K::Int,mol::Int,cd::Int) = SIBaseUnit{m,kg,s,A,K,mol,cd}()
 
-  # Function to extract the UnitTuple corresponding to the SIUnit:
-  tup{m,kg,s,A,K,mol,cd,rad,sr}(::SIUnit{m,kg,s,A,K,mol,cd,rad,sr}) = (m,kg,s,A,K,mol,cd,rad,sr)
-  # Function to convert a UnitTuple into a SIUnit (DataType):
-  tup2u(tup::UnitTuple) = SIUnit{tup[1], tup[2], tup[3], tup[4], tup[5], tup[6], tup[7], tup[8], tup[9]}()
-  # Definition of the "-" operator for a single UnitTuple:
-      -(tup::UnitTuple) =      (-tup[1],-tup[2],-tup[3],-tup[4],-tup[5],-tup[6],-tup[7],-tup[8],-tup[9])
+const scalar         = SIBaseUnit(0,0,0,0,0,0,0)
+const meter    = m   = SIBaseUnit(1,0,0,0,0,0,0)
+const kilogram = kg  = SIBaseUnit(0,1,0,0,0,0,0)
+const second   = s   = SIBaseUnit(0,0,1,0,0,0,0)
+const ampere   = A   = SIBaseUnit(0,0,0,1,0,0,0)
+const kelvin   = K   = SIBaseUnit(0,0,0,0,1,0,0)
+const mole     = mol = SIBaseUnit(0,0,0,0,0,1,0)
+const candela  = cd  = SIBaseUnit(0,0,0,0,0,0,1)
 
-  # Metaprogramming block to define the addition(+), subtraction(-) and
-  # multiplication(*) between 2 UnitTuples to be used as the base for the
-  # operations between SIUnit(s):
-  for op in (:+,:-,:*)
-      @eval function $(op)(tup1::UnitTuple,tup2::UnitTuple)
-                return ($(op)(tup1[1],tup2[1]),$(op)(tup1[2],tup2[2]),$(op)(tup1[3],tup2[3]),$(op)(tup1[4],tup2[4]),$(op)(tup1[5],tup2[5]),$(op)(tup1[6],tup2[6]),$(op)(tup1[7],tup2[7]),$(op)(tup1[8],tup2[8]),$(op)(tup1[9],tup2[9]))
-            end
+# sibaseunit_tuple(::Type{SIBaseUnit{m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i}}) where {m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i} = (m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i)
+# sibaseunit_tuple(     ::SIBaseUnit{m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i} ) where {m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i} = (m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i)
+# As working with SIBaseUnits is equivalent to work with the corresponding tuples, then all the operations are defied over the tuples.
 
-      @eval function $(op)(tup::UnitTuple, i::Integer)
-                return ($(op)(tup[1],i),$(op)(tup[2],i),$(op)(tup[3],i),$(op)(tup[4],i),$(op)(tup[5],i),$(op)(tup[6],i),$(op)(tup[7],i),$(op)(tup[8],i),$(op)(tup[9],i))
-            end
++(x::SIBaseUnit{m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i},y::SIBaseUnit{m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i}) where {m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i} = x # x and y are singletons therefore x==y.
+-(x::SIBaseUnit{m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i},y::SIBaseUnit{m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i}) where {m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i} = x # x and y are singletons therefore x==y.
 
-      @eval function $(op)(i::Integer,tup::UnitTuple)
-                return ($(op)(i,tup[1]),$(op)(i,tup[2]),$(op)(i,tup[3]),$(op)(i,tup[4]),$(op)(i,tup[5]),$(op)(i,tup[6]),$(op)(i,tup[7]),$(op)(i,tup[8]),$(op)(i,tup[9]))
-            end
-  end
+*(x::SIBaseUnit{m1,kg1,s1,A1,K1,mol1,cd1},y::SIBaseUnit{m2,kg2,s2,A2,K2,mol2,cd2}) where {m1,kg1,s1,A1,K1,mol1,cd1,m2,kg2,s2,A2,K2,mol2,cd2} = SIBaseUnit{m1+m2,kg1+kg2,s1+s2,A1+A2,K1+K2,mol1+mol2,cd1+cd2}() # x and y are singletons therefore x==y.
+/(x::SIBaseUnit{m1,kg1,s1,A1,K1,mol1,cd1},y::SIBaseUnit{m2,kg2,s2,A2,K2,mol2,cd2}) where {m1,kg1,s1,A1,K1,mol1,cd1,m2,kg2,s2,A2,K2,mol2,cd2} = SIBaseUnit{m1-m2,kg1-kg2,s1-s2,A1-A2,K1-K2,mol1-mol2,cd1-cd2}() # x and y are singletons therefore x==y.
+\(x::SIBaseUnit{m1,kg1,s1,A1,K1,mol1,cd1},y::SIBaseUnit{m2,kg2,s2,A2,K2,mol2,cd2}) where {m1,kg1,s1,A1,K1,mol1,cd1,m2,kg2,s2,A2,K2,mol2,cd2} = SIBaseUnit{m2-m1,kg2-kg1,s2-s1,A2-A1,K2-K1,mol2-mol1,cd2-cd1}() # x and y are singletons therefore x==y.
 
-  # Definition of the operations between SIUnit(s)
-  for op in (:/,://)
-      @eval $(op)(x::SIUnit,y::SIUnit) = tup2u(tup(x)-tup(y))
-  end
+^(::SIBaseUnit{m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i}, i::Integer) where {m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i} = SIBaseUnit{m_i*i,kg_i*i,s_i*i,A_i*i,K_i*i,mol_i*i,cd_i*i}()
 
-  # The followig method yields the same LLVM code as:
-  # inv{m,kg,s,A,K,mol,cd,rad,sr}(::SIUnit{m,kg,s,A,K,mol,cd,rad,sr}) = SIUnit{-m,-kg,-s,-A,-K,-mol,-cd,-rad,-sr}()
-  inv(x::SIUnit) = tup2u(-tup(x))
+inv(::SIBaseUnit{m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i}) where {m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i} = SIBaseUnit{-m_i,-kg_i,-s_i,-A_i,-K_i,-mol_i,-cd_i}()
 
-  ==(x::SIUnit,y::SIUnit) = (tup(x) == tup(y))
-   *(x::SIUnit,y::SIUnit) = tup2u(tup(x)+tup(y))
+export joule, coulomb, volt, farad, newton, ohm, hertz, siemens, watt, pascal
+# Definition of the SI derived units:
+const joule      = kilogram*meter^2/second^2
+const coulomb    = ampere*second
+const volt       = joule/coulomb
+const farad      = coulomb^2/joule
+const newton     = kilogram*meter/second^2
+const ohm        = volt/ampere
+const hertz      = inv(second)
+const siemens    = inv(ohm)
+const watt       = joule/second
+const pascal     = newton/meter^2
 
-  function ^{m,kg,s,A,K,mol,cd,rad,sr}(x::SIUnit{m,kg,s,A,K,mol,cd,rad,sr},i::Integer)
-      return SIUnit{m*i,kg*i,s*i,A*i,K*i,mol*i,cd*i,rad*i,sr*i}()
-  end
+# Pretty Printing - Text
 
-  export SIPrefix, Meter, KiloGram, Second, Ampere, Kelvin, Mole, Candela, Radian, Steradian
-  # Definition of the SI base units:
-  const SIPrefix   = SIUnit{0,0,0,0,0,0,0,0,0}()
-  const Meter      = SIUnit{1,0,0,0,0,0,0,0,0}()
-  const KiloGram   = SIUnit{0,1,0,0,0,0,0,0,0}()
-  const Second     = SIUnit{0,0,1,0,0,0,0,0,0}()
-  const Ampere     = SIUnit{0,0,0,1,0,0,0,0,0}()
-  const Kelvin     = SIUnit{0,0,0,0,1,0,0,0,0}()
-  const Mole       = SIUnit{0,0,0,0,0,1,0,0,0}()
-  const Candela    = SIUnit{0,0,0,0,0,0,1,0,0}()
-  const Radian     = SIUnit{0,0,0,0,0,0,0,1,0}()
-  const Steradian  = SIUnit{0,0,0,0,0,0,0,0,1}()
+# This is an auxiliary function used by the show() function.
+# This function takes the number::Int and gets its string representation using repr().
+# It then applies to each caracter in the string the function in the Do-Block using the map() function.
+# The function in the Do-Block changes each character for its equivalent in UNICODE superscript form.
+# (https://docs.julialang.org/en/v1/base/strings/#Base.repr-Tuple{Any})
+# (https://docs.julialang.org/en/v1.0.0/manual/functions/#Do-Block-Syntax-for-Function-Arguments-1)
+tosuperscript(number::Int) = map(repr(number)) do c
+   c  ==  '-' ? '\u207b' :
+   c  ==  '1' ? '\u00b9' :
+   c  ==  '2' ? '\u00b2' :
+   c  ==  '3' ? '\u00b3' :
+   c  ==  '4' ? '\u2074' :
+   c  ==  '5' ? '\u2075' :
+   c  ==  '6' ? '\u2076' :
+   c  ==  '7' ? '\u2077' :
+   c  ==  '8' ? '\u2078' :
+   c  ==  '9' ? '\u2079' :
+   c  ==  '0' ? '\u2070' :
+   # c  ==  '+' ? '\u207a' :
+   # c  ==  '.' ? '\u22c5' :
+   error("Unexpected Chatacter")
+end
 
-  export Joule, Coulomb, Volt, Farad, Newton, Ohm, Hertz, Siemens, Watt, Pascal
-  # Definition of the SI derived units:
-  const Joule      = KiloGram*Meter^2/Second^2
-  const Coulomb    = Ampere*Second
-  const Volt       = Joule/Coulomb
-  const Farad      = Coulomb^2/Joule
-  const Newton     = KiloGram*Meter/Second^2
-  const Ohm        = Volt/Ampere
-  const Hertz      = inv(Second)
-  const Siemens    = inv(Ohm)
-  const Watt       = Joule/Second
-  const Pascal     = Newton/Meter^2
+macro generateshowcode(suffix, tupleOfUnits...) # ... denotes a variable number of arguments.
+   expressionsArray = []
+   for unit in tupleOfUnits
+      functionParameter = Symbol(unit,suffix)
+      ex = esc(:($functionParameter ≠ 0 && print(io, $(String(unit)), ($functionParameter == 1 ? ' ' : tosuperscript($functionParameter)))))
+      push!(expressionsArray, ex)
+   end
 
-  # Pretty Printing - Text
+   return quote $(tuple(expressionsArray...)...) end
 
-  # This is an auxiliary function to be used in the show() function.
-  # This function applies the function defined in the do-block to each
-  # element of the content of the string representation of "i".
-  # (http://docs.julialang.org/en/release-0.4/stdlib/strings/#Base.repr)
-  # (http://www.juliabloggers.com/using-blocks-in-julia/)
-  superscript(i) = map(repr(i)) do c
-     c   ==  '-' ? '\u207b' :
-     c   ==  '1' ? '\u00b9' :
-     c   ==  '2' ? '\u00b2' :
-     c   ==  '3' ? '\u00b3' :
-     c   ==  '4' ? '\u2074' :
-     c   ==  '5' ? '\u2075' :
-     c   ==  '6' ? '\u2076' :
-     c   ==  '7' ? '\u2077' :
-     c   ==  '8' ? '\u2078' :
-     c   ==  '9' ? '\u2079' :
-     c   ==  '0' ? '\u2070' :
-     error("Unexpected Chatacter")
-  end
+   # The code above generates the code under when called with @generateshowcode("_i", m,kg,s,A,K,mol,cd)
+   #   m_i ≠ 0 && print(io, "m"  , (  m_i == 1 ? ' ' : tosuperscript(  m_i)))
+   #  kg_i ≠ 0 && print(io, "kg" , ( kg_i == 1 ? ' ' : tosuperscript( kg_i)))
+   #   s_i ≠ 0 && print(io, "s"  , (  s_i == 1 ? ' ' : tosuperscript(  s_i)))
+   #   A_i ≠ 0 && print(io, "A"  , (  A_i == 1 ? ' ' : tosuperscript(  A_i)))
+   #   K_i ≠ 0 && print(io, "K"  , (  K_i == 1 ? ' ' : tosuperscript(  K_i)))
+   # mol_i ≠ 0 && print(io, "mol", (mol_i == 1 ? ' ' : tosuperscript(mol_i)))
+   #  cd_i ≠ 0 && print(io, "cd" , ( cd_i == 1 ? ' ' : tosuperscript( cd_i)))
 
-  # This is an auxiliary function to be used in the show() function.
-  # Only print a space if there are nonzero units coming after this one
-  function spacing(idx::Int, x::SIUnit)
-     # ntuple(f::Function, n): Create a tuple of length n, computing each element as f(i), where i is the index of the element.
-     unitTuple = tup(x)
-     (unitTuple[idx+1:end] == ntuple((i)->0, length(unitTuple)-idx)) ? "" : " "
-  end
+end
 
-  macro generateshowcode(unittup...)
-      evaluationstring = ASCIIString[]
+function show(io::IO,u::SIBaseUnit{m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i}) where {m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i}
+   @generateshowcode("_i", m,kg,s,A,K,mol,cd)
+end
 
-      push!(evaluationstring, "begin")
-      for (index,unit) in enumerate(unittup[1:end-1])
-          codeline = "$unit != 0 && print(io, \"$unit\", ($unit == 1 ? spacing($index,x) : superscript($unit)))"
-          push!(evaluationstring, codeline)
-      end
-      push!(evaluationstring, "$(unittup[end]) != 0 && print(io, \"$(unittup[end])\", ($(unittup[end]) == 1 ? \"\" : superscript($(unittup[end]))))")
-      push!(evaluationstring, "end")
+macro generatenumeratoranddenominatorcode(suffix, tupleOfUnits...)
+   expressionsArray = []
+   for unit in tupleOfUnits
+      functionParameter = Symbol(unit,suffix)
+      unitString  = "\\text{$unit}"
+      latexString = :($unitString * (abs($functionParameter) == 1 ? "\\," : "^{" * string(abs($functionParameter)) * "}"))
+      ex = esc(:($functionParameter ≠ 0 && ($functionParameter ≥ 1 ? num *= $latexString : den *= $latexString)))
+      push!(expressionsArray, ex)
+   end
 
-      return parse(join(evaluationstring, "\n"))
+   return quote $(tuple(expressionsArray...)...) end
+end
 
-  end
+export latexstring
+function latexstring(u::SIBaseUnit{m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i}) where {m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i}
+   num = ""
+   den = ""
+   out = ""
 
-  # This function shows (i.e. prints) the units using the SI unit symbol and unicode
-  # characters for the superscript.
-  function show{m,kg,s,A,K,mol,cd,rad,sr}(io::IO,x::SIUnit{m,kg,s,A,K,mol,cd,rad,sr})
+   @generatenumeratoranddenominatorcode("_i", m,kg,s,A,K,mol,cd)
 
-    # The following code is generated by the macro under:
-    #  m   != 0 && print(io, "m"  , (m   == 1 ? spacing(1,x) : superscript(m  )))
-    #  kg  != 0 && print(io, "kg" , (kg  == 1 ? spacing(2,x) : superscript(kg )))
-    #  s   != 0 && print(io, "s"  , (s   == 1 ? spacing(3,x) : superscript(s  )))
-    #  A   != 0 && print(io, "A"  , (A   == 1 ? spacing(4,x) : superscript(A  )))
-    #  K   != 0 && print(io, "K"  , (K   == 1 ? spacing(5,x) : superscript(K  )))
-    #  mol != 0 && print(io, "mol", (mol == 1 ? spacing(6,x) : superscript(mol)))
-    #  cd  != 0 && print(io, "cd" , (cd  == 1 ? spacing(7,x) : superscript(cd )))
-    #  rad != 0 && print(io, "rad", (rad == 1 ? spacing(8,x) : superscript(rad)))
-    #  sr  != 0 && print(io, "sr" , (sr  == 1 ? ""           : superscript(sr )))
-
-     @generateshowcode(m,kg,s,A,K,mol,cd,rad,sr)
-     return nothing
-  end
-
-  # Pretty Printing - LaTeX
-  using TexExtensions
-
-  import Base: writemime
-
-  # The template code line that needs to be "copied" 9 times is:
-  #   paramName != 0 && push!(paramName>0?num:den,string("\\text{",paramNameString,"}",abs(paramName) == 1 ? " " : string("^{",abs(paramName),"}")))
-  # For example: paramName = m; paramNameString = "m"
-  #   m != 0 && push!(m >0?num:den,string("\\text{","m","}",abs(m) == 1 ? " " : string("^{",abs(m),"}")))
-  macro generatenumanddencode(unittup...)
-      evaluationstring = ASCIIString[]
-
-      push!(evaluationstring, "begin")
-      for unit in unittup
-          codeline = "$unit != 0 && push!($unit>0?num:den,string(\"\\\\text{$unit}\",abs($unit) == 1 ? \"\" : string(\"^{\",abs($unit),\"}\")))"
-          push!(evaluationstring, codeline)
-      end
-      push!(evaluationstring, "end")
-
-      return parse(join(evaluationstring, "\n"))
-  end
-
-  # This function creates the LaTeX string corresponding to the SIUnit
-  function latexstring{m,kg,s,A,K,mol,cd,rad,sr}(::SIBaseUnits.SIUnit{m,kg,s,A,K,mol,cd,rad,sr})
-      num = ASCIIString[]
-      den = ASCIIString[]
-      out = ""
-
-      @generatenumanddencode(m,kg,s,A,K,mol,cd,rad,sr)
-
-      if !isempty(den)
-          if isempty(num)
-              out = string("\\frac{1}{",join(den,"\\;"),"}")
-          else
-              out = string("\\frac{",join(num,"\\;"),"}{",join(den,"\\;"),"}")
-          end
+   if !isempty(den)
+      (length(den)>1 && den[end-1:end]=="\\,") ? den=den[1:end-2] : nothing
+      if isempty(num)
+         out = "\$\\frac{1}{" * den * "}\$"
       else
-          out = string(join(num,"\\;"))
+         (length(num)>1 && num[end-1:end]=="\\,") ? num=num[1:end-2] : nothing
+         out = "\$\\frac{" * num * "}{" * den * "}\$"
       end
-      return out
-  end
+   else
+      (length(num)>1 && num[end-1:end]=="\\,") ? num=num[1:end-2] : nothing
+      out = "\$" * num * "\$"
+   end
+   return out
 
-  function Base.Multimedia.writemime{m,kg,s,A,K,mol,cd,rad,sr}(io::IO,::MIME"text/mathtex+latex",x::SIUnit{m,kg,s,A,K,mol,cd,rad,sr})
-      write(io, latexstring(x))
-  end
+end
 
-end #module
-
-#Original code that was removed:
-
-# This is an auxiliary macro to be used in the writemime() method below. It uses the
-# "num" and "den" variables from the calling function scope.
-# In summary the macro takes x corresponding to the exponent of each of the base units
-# and depending on whether it is positive or negative it adds it to the nominator or
-# denominator string ""\\text{",$(string(x)),"\}". regarding the exponent if it is
-# +/- 1 then it adds an empty space otherwise it adds the string "^{",abs($x),"}"
-# macro l(x)
-#     esc(quote
-#           $x != 0 && push!($x>0?num:den,string("\\text{",$(string(x)),"\}",abs($x) == 1 ? " " : string("^{",abs($x),"}")))
-#         end)
-# end
-#
-# function Base.Multimedia.writemime{m,kg,s,A,K,mol,cd,rad,sr}(io::IO,::MIME"text/mathtex+latex",x::SIUnit{m,kg,s,A,K,mol,cd,rad,sr})
-#     num = ASCIIString[]
-#     den = ASCIIString[]
-#     @l m
-#     @l kg
-#     @l s
-#     @l A
-#     @l K
-#     @l mol
-#     @l cd
-#     @l rad
-#     @l sr
-#     if !isempty(den)
-#         if isempty(num)
-#             write(io,"\\frac{1}{",join(den,"\\;"),"}")
-#         else
-#             write(io,"\\frac{",join(num,"\\;"),"}{",join(den,"\\;"),"}")
-#         end
-#     else
-#         write(io,join(num,"\\;"))
-#     end
-#
-# end
-
-  # # This function does the same as tup(). May it be removed?
-  # function sidims{m,kg,s,A,K,mol,cd,rad,sr}(::SIUnit{m,kg,s,A,K,mol,cd,rad,sr})
-  #     return (m,kg,s,A,K,mol,cd,rad,sr)
-  # end
-  #
-  # export @prettyshow
-  #
-  # macro prettyshow(unit,string)
-  #     # Reminder: esc() escapes the expression that is passed as argument.
-  #     # Reminder: quote() is used for building expressions.
-  #     esc(quote function Base.show(io::IO,::SIBaseUnits.SIUnit{SIBaseUnits.sidims($(unit))...})
-  #                   print(io,$(string))
-  #               end
-  #               function Base.Multimedia.writemime(io::IO,::MIME"text/mathtex+latex",::SIBaseUnits.SIUnit{SIBaseUnits.sidims($(unit))...})
-  #                   Base.Multimedia.writemime(io,MIME("text/mathtex+latex"),$(string))
-  #               end
-  #         end)
-  # end
+end

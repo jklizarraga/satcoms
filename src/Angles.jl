@@ -1,4 +1,4 @@
-# Usage:
+# Usage in REPL:
 # include("./src/Angles.jl")
 # using Main.Angles
 # for op in Main.Angles.operationsTrigoInverse
@@ -54,7 +54,7 @@ for angularUnits in (:Degrees, :Radians)
             val::T
           end
 
-          convert(::Type{T}               , x::$angularUnits{T}) where {T<:Real}           = x.val
+          convert(::Type{T}               , x::$angularUnits{T}) where {T<:Real}         = x.val
           convert(::Type{$angularUnits{T}}, x::$angularUnits{S}) where {T<:Real,S<:Real} = $angularUnits(T(x.val))
 
           promote_rule(::Type{$angularUnits{T}},::Type{$angularUnits{S}}) where {T<:Real,S<:Real} = $angularUnits{promote_type(T,S)}

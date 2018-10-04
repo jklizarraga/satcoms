@@ -98,10 +98,111 @@ z = Radians(0.03)
 x + y
 x + z
 
+# isdefined(Base, :__precompile__) && __precompile__()
+
+baremodule TestModule
+
+using Base
+export teststruct
+
+eval(x) = Core.eval(Mod, x)
+include(p) = Base.include(Mod, p)
+
+# struct teststruct{T<:Int, S<:Float64}
+#   x::T
+#   y::S
+# end
+
+struct teststruct{t}
+  teststruct{T}() where T = isa(T, Int) ? new() : error("teststruct can only be constructed with integers")
+end
+# (::Type{teststruct{t}})() where {t<:Int} = teststruct{t}()
+# (::Type{teststruct{t}})() where {t>:Int} = errormessage("Error")
+# teststruct(t::T) where {T<:Int} = teststruct{t}
+# teststruct(t::T) where {T>:Int} = errormessage("Error")
+
+end
+
+using Main.TestModule
+teststruct{1}()
+teststruct{1.5}()
+
+baremodule TestModule
+
+using Base
+export teststruct
+
+eval(x) = Core.eval(Mod, x)
+include(p) = Base.include(Mod, p)
+
+teststruct = Tuple{Vararg{Int,7}}
+
+
+end
+
+using Main.TestModule
+teststruct(0,0,0,0,0,0,0)
+
+
+include("./Satcoms/src/SIBaseUnits.jl")
+using Main.SIBaseUnits
+Main.SIBaseUnits.SIBaseUnit{0,0}()
+
+
 include("SIBaseUnits.jl")
 include("SIQuantities.jl")
 using SIBaseUnits
 using SIQuantities
+
+u = :m
+m_i = 5
+sy = Symbol(u,"_i")
+io = stdout
+
+@eval $(println(u,"=")) # -- m=
+@macroexpand @eval $(println(u,"=")) # --> :((Base.Core).eval(Main, println(u, "=")))
+@eval $(quote println(u,"=") end) # --> m=
+@macroexpand @eval $(quote println(u,"=") end)  # --> :((Base.Core).eval(Main, $(Expr(:copyast, :($(QuoteNode(quote
+                                                #         #= none:1 =#
+                                                #         println(u, "=")
+                                                #     end)))))))
+
+@eval $(println(u,"=",sy)) # --> m=m_i
+@macroexpand @eval $(println(u,"=",sy)) # :((Base.Core).eval(Main, println(u, "=", sy)))
+@eval $(quote println(u,"=",$sy) end) # m=5
+@macroexpand @eval $(quote println(u,"=",$sy) end) # :((Base.Core).eval(Main, (Core._expr)(:block, $(QuoteNode(:(#= none:1 =#))), (Core._expr)(:call, :println, :u, "=", sy))))
+@eval $(quote println(u,"=",$(Symbol(u,"_i"))) end) # m=5
+@macroexpand @eval $(quote println(u,"=",$(Symbol(u,"_i"))) end)
+
+function f(io::IO, m_i::Int, kg_i::Int, s_i::Int, A_i::Int, K_i::Int, mol_i::Int, cd_i::Int)
+  for u in (:m,:kg,:s,:A,:K,:mol,:cd)
+      print(@macroexpand @eval println(io,u,"="))
+      print("   ")
+      print(@macroexpand @eval println($io,$u,"="))
+      print("   ")
+      println(u)
+      @eval println($io,u,"=")
+  end
+end
+
+extup = (:(x = 3),:(y = 5))
+ex = quote $(extup...) end
+eval(ex)
+
+exarr = [:(x = 3),:(y = 5)]
+push!(exarr, :(x+y))
+ex = quote $(tuple(exarr...)...) end
+eval(ex)
+
+u = :m
+m = 5
+:(print(u))
+:(print($u))
+
+   # :((Base.Core).eval(Main, (Core._expr)(:block, $(QuoteNode(:(#= none:1 =#))), (Core._expr)(:call, :println, :u, "=", Symbol(u, "_i")))))
+
+# :((Base.Core).eval(Main, (Core._expr)(:block, $(QuoteNode(:(#= none:1 =#))), (Core._expr)(:call, :println, :u, "=", sy))))
+# :((Base.Core).eval(Main, (Core._expr)(:block, $(QuoteNode(:(#= none:1 =#))), (Core._expr)(:call, :println, :u, "=", Symbol(u, "_i")))))
 
 limit = 1e7
 @time [^(SIUnit{1,2,3,4,5,6,7,8,9}(),20) for i=1:limit]
