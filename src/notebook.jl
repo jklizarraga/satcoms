@@ -199,7 +199,11 @@ m = 5
 :(print(u))
 :(print($u))
 
-   # :((Base.Core).eval(Main, (Core._expr)(:block, $(QuoteNode(:(#= none:1 =#))), (Core._expr)(:call, :println, :u, "=", Symbol(u, "_i")))))
+include("./Angles.jl")
+using Main.Angles
+x = Degrees(1:2:10)
+Base.IteratorSize(typeof(x))
+Base.IteratorSize(AbstractRange{Real})
 
 # :((Base.Core).eval(Main, (Core._expr)(:block, $(QuoteNode(:(#= none:1 =#))), (Core._expr)(:call, :println, :u, "=", sy))))
 # :((Base.Core).eval(Main, (Core._expr)(:block, $(QuoteNode(:(#= none:1 =#))), (Core._expr)(:call, :println, :u, "=", Symbol(u, "_i")))))

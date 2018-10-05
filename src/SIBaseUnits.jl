@@ -5,7 +5,7 @@ baremodule SIBaseUnits
 using Base
 import Base: +, -, *, /, \, ^, inv
 import Base: show
-export SIBaseUnit, scalar, meter, m, kilogram, kg, seconds, s, ampere, A, kelvin, K, mole, mol, candela, cd
+export SIBaseUnit, scalar, meter, m, kilogram, kg, seconds, s, ampere, A, kelvin, K, mole, mol, candela
 export +, -, *, /, \, ^
 
 eval(x) = Core.eval(Mod, x)
