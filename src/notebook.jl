@@ -202,8 +202,14 @@ m = 5
 include("./Angles.jl")
 using Main.Angles
 x = Degrees(1:2:10)
-Base.IteratorSize(typeof(x))
-Base.IteratorSize(AbstractRange{Real})
+step(x)
+
+# Usage in REPL:
+include("./src/Angles.jl")
+using Main.Angles
+for op in Main.Angles.operationsInverse
+  @eval $op(x::Real) = Main.Angles.$op(x)
+end
 
 # :((Base.Core).eval(Main, (Core._expr)(:block, $(QuoteNode(:(#= none:1 =#))), (Core._expr)(:call, :println, :u, "=", sy))))
 # :((Base.Core).eval(Main, (Core._expr)(:block, $(QuoteNode(:(#= none:1 =#))), (Core._expr)(:call, :println, :u, "=", Symbol(u, "_i")))))

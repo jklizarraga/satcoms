@@ -20,7 +20,7 @@ const operationsBetweenAngles_angle  = (:+, :-)
 const operationsBetweenAngles_scalar = (:/, :\)
 const operationsAngleScalar          = (:*, :/, :÷, :^, :%, :rem, :mod, :fld, :cld)
 const operationsScalarAngle          = (:*, :\)
-const operationsComparison           = (Symbol("=="), :≠, :<, :≤, :>, :≥)
+const operationsComparison           = (Symbol("=="), :≠, :<, :≤, :>, :≥, :isless)
 const operationsTrigonometric        = ( :sin,  :cos,  :tan,  :csc,  :sec,  :cot)
 const operationsTrigoInvRad          = (:asin, :acos, :atan, :acsc, :asec, :acot)
 const operationsTrigoInvDeg          = Symbol.(operationsTrigoInvRad,"d")
@@ -52,7 +52,8 @@ end
 export operationsInverse
 
 import Base: deg2rad, rad2deg
-import Base: convert, promote_rule, show, iterate, IteratorSize, IteratorEltype, eltype, length, size
+import Base: convert, promote_rule, show
+import Base: iterate, IteratorSize, IteratorEltype, eltype, length, size, step
 
 abstract type Angle end
 abstract type AngleRange end
@@ -61,41 +62,17 @@ asciiRepresentation = Dict("Degrees"=>"º"   , "Radians"=>"rad")
  htmlRepresentation = Dict("Degrees"=>"&deg", "Radians"=>"rad")
 
 for angularUnits in (:Degrees, :Radians)
+  angularRange = Symbol(angularUnits,"Range")
 
   @eval begin
-          # angularRange = $(Symbol(angularUnits,"Range"))
-          export $angularUnits, $(Symbol(angularUnits,"Range"))
+
+          export $angularUnits
 
           struct $angularUnits{T<:Real} <: Angle
             val::T
           end
 
           $angularUnits(a::Nothing) = nothing
-
-          struct $(Symbol(angularUnits,"Range")){T <: Real} <: AngleRange
-            r::S where {S <: AbstractRange{T}}
-          end
-
-          $angularUnits(a::T) where {T <: AbstractArray{S,D} where {S <: Real,D}} = ($angularUnits).(a)
-
-          # $angularUnits(r::S) where {S <: AbstractRange{T} where T <: Real} = ($angularUnits).(r)
-          $angularUnits(r::S) where {S <: AbstractRange{<:Real}} = $(Symbol(angularUnits,"Range")){eltype(r)}(r)
-
-          function iterate(rangeOfAngle::$(Symbol(angularUnits,"Range")))
-             result = iterate(rangeOfAngle.r)
-             result ≠ nothing ? (return ($angularUnits(result[1]), result[2])) : (return nothing)
-          end
-
-          function iterate(rangeOfAngle::$(Symbol(angularUnits,"Range")), state)
-            result = iterate(rangeOfAngle.r, state)
-            result ≠ nothing ? (return ($angularUnits(result[1]), result[2])) : (return nothing)
-          end
-
-          Base.eltype(::Type{($(Symbol(angularUnits,"Range"))){T}})       where {T <: Real} = $angularUnits{T}
-          Base.IteratorSize(  ::Type{$(Symbol(angularUnits,"Range")){T}}) where {T <: Real} = Base.IteratorSize(AbstractRange{Real})
-          Base.IteratorEltype(::Type{$(Symbol(angularUnits,"Range")){T}}) where {T <: Real} = Base.HasEltype()
-          Base.length(rangeOfAngle::$(Symbol(angularUnits,"Range")){T})   where {T <: Real} = length(rangeOfAngle.r)
-          Base.size(  rangeOfAngle::$(Symbol(angularUnits,"Range")){T})   where {T <: Real} = size(rangeOfAngle.r)
 
           convert(::Type{T}               , x::$angularUnits{T}) where {T<:Real}         = x.val
           convert(::Type{$angularUnits{T}}, x::$angularUnits{S}) where {T<:Real,S<:Real} = $angularUnits(T(x.val))
@@ -106,6 +83,41 @@ for angularUnits in (:Degrees, :Radians)
           Base.show(io::IO,                     x::$angularUnits{T}) where {T} = print(io, x.val, asciiRepresentation[$(String(angularUnits))])
           Base.show(io::IO, ::MIME"text/plain", x::$angularUnits{T}) where {T} = print(io, "Angle in ",$(String(angularUnits)),"{$T}: ", x, "\n")
           Base.show(io::IO, ::MIME"text/html" , x::$angularUnits{T}) where {T} = print(io, x.val, htmlRepresentation[$(String(angularUnits))] ," [<code>",$(String(angularUnits)),"{$T}</code>]")
+
+          # Ranges
+          export $angularRange
+
+          struct $angularRange{T<:Real} <: AngleRange
+            r::S where {S<:AbstractRange{T}}
+          end
+
+          $angularUnits(a::T) where {T<:AbstractArray{S,D} where {S<:Real,D}} = ($angularUnits).(a)
+
+          # $angularUnits(r::S) where {S <: AbstractRange{T} where T <: Real} = ($angularUnits).(r)
+          $angularUnits(r::S) where {S <: AbstractRange{<:Real}} = $angularRange{eltype(r)}(r)
+
+          function iterate(rangeOfAngle::$angularRange{T}) where {T<:Real}
+             result = iterate(rangeOfAngle.r)
+             result ≠ nothing ? (return ($angularUnits(result[1]), result[2])) : (return nothing)
+          end
+
+          function iterate(rangeOfAngle::$angularRange{T}, state) where {T<:Real}
+            result = iterate(rangeOfAngle.r, state)
+            result ≠ nothing ? (return ($angularUnits(result[1]), result[2])) : (return nothing)
+          end
+
+          step(rangeOfAngle::$angularRange{T}) where {T<:Real} = $angularUnits(step(rangeOfAngle.r))
+
+          Base.eltype(        ::Type{$angularRange{T}}) where {T<:Real} = $angularUnits{T}
+          Base.IteratorSize(  ::Type{$angularRange{T}}) where {T<:Real} = Base.IteratorSize(AbstractRange{Real})
+          Base.IteratorEltype(::Type{$angularRange{T}}) where {T<:Real} = Base.HasEltype()
+          Base.length( rangeOfAngle::$angularRange{T} ) where {T<:Real} = length(rangeOfAngle.r)
+          Base.size(   rangeOfAngle::$angularRange{T} ) where {T<:Real} = size(rangeOfAngle.r)
+
+          *(r::R            ,  ::Type{$angularUnits}) where {R<:AbstractRange{<:Real}} = $angularUnits(r)
+          *(r::R            , x::$angularUnits      ) where {R<:AbstractRange{<:Real}} = $angularUnits(r * x.val)
+          *(x::$angularUnits, r::R                  ) where {R<:AbstractRange{<:Real}} = $angularUnits(x.val * r)
+
         end
 end
 
