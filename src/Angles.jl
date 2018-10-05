@@ -55,8 +55,8 @@ import Base: deg2rad, rad2deg
 import Base: convert, promote_rule, show
 import Base: iterate, IteratorSize, IteratorEltype, eltype, length, size, step
 
-abstract type Angle end
-abstract type AngleRange end
+abstract type Angle{T<:Real} end
+abstract type AngleRange{T<:Real} end
 
 asciiRepresentation = Dict("Degrees"=>"º"   , "Radians"=>"rad")
  htmlRepresentation = Dict("Degrees"=>"&deg", "Radians"=>"rad")
@@ -65,10 +65,10 @@ for angularUnits in (:Degrees, :Radians)
   angularRange = Symbol(angularUnits,"Range")
 
   @eval begin
-
+          # Singleton angular units
           export $angularUnits
 
-          struct $angularUnits{T<:Real} <: Angle
+          struct $angularUnits{T} <: Angle{T where T<:Real}
             val::T
           end
 
@@ -76,6 +76,7 @@ for angularUnits in (:Degrees, :Radians)
 
           convert(::Type{T}               , x::$angularUnits{T}) where {T<:Real}         = x.val
           convert(::Type{$angularUnits{T}}, x::$angularUnits{S}) where {T<:Real,S<:Real} = $angularUnits(T(x.val))
+          convert(::Type{$angularUnits{T}}, x::S               ) where {T<:Real,S<:Real} = $angularUnits(T(x    ))
 
           promote_rule(::Type{$angularUnits{T}},::Type{$angularUnits{S}}) where {T<:Real,S<:Real} = $angularUnits{promote_type(T,S)}
 
@@ -87,7 +88,7 @@ for angularUnits in (:Degrees, :Radians)
           # Ranges
           export $angularRange
 
-          struct $angularRange{T<:Real} <: AngleRange
+          struct $angularRange{T} <: AngleRange{T where T<:Real}
             r::S where {S<:AbstractRange{T}}
           end
 
@@ -114,6 +115,8 @@ for angularUnits in (:Degrees, :Radians)
           Base.length( rangeOfAngle::$angularRange{T} ) where {T<:Real} = length(rangeOfAngle.r)
           Base.size(   rangeOfAngle::$angularRange{T} ) where {T<:Real} = size(rangeOfAngle.r)
 
+          # New methods for the operations.
+
           *(r::R            ,  ::Type{$angularUnits}) where {R<:AbstractRange{<:Real}} = $angularUnits(r)
           *(r::R            , x::$angularUnits      ) where {R<:AbstractRange{<:Real}} = $angularUnits(r * x.val)
           *(x::$angularUnits, r::R                  ) where {R<:AbstractRange{<:Real}} = $angularUnits(x.val * r)
@@ -129,24 +132,21 @@ convert(::Type{Degrees{T}}, x::Radians) where {T<:Real} = rad2deg(x)
 
 promote_rule(::Type{Degrees{T}},::Type{Radians{S}}) where {T<:Real,S<:Real} = Radians{promote_type(T,S)}
 
-# New methods for the operations.
+# New methods for the operations
 
 ## Arithmetic operators
 ### Unary operators
 for op in operationsUnary_angle
   @eval $op(x::T) where {T<:Angle} = T($op(x.val))
 end
-# +(x::T) where {T<:Angle} = x
-# -(x::T) where {T<:Angle} = T(-x.val)
-# mod2pi(x::T) where {T<:Angle} = T(mod2pi(x.val  ))
 
-zero(::Type{T}) where {T<:Angle} = T(0)
+zero(::Type{Angle{T}}) where {T<:Real} = T(0)
 
 for op in operationsUnary_scalar
   @eval $op(x::T) where {T<:Angle} = $op(x.val)
 end
 
-one(::Type{T}) where {T<:Angle} = 1
+one(::Type{Angle{T}}) where {T<:Real} = T(1)
 
 rem2pi(x::T, r::RoundingMode) where {T<:Angle} = T(rem2pi(x.val,r))
 round( x::T, r::RoundingMode) where {T<:Angle} = T(round( x.val,r))
