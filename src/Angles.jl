@@ -14,8 +14,8 @@ using Base
 eval(x) = Core.eval(Mod, x)
 include(p) = Base.include(Mod, p)
 
-const operationsUnary_angle          = (:+, :-, :mod2pi, :abs, :abs2, :√, :∛, :one, :floor, :ceil, :trunc, :zero) # rem2pi has to be treated separately
-const operationsUnary_scalar         = (:inv, :sign, :signbit, :isinteger, :isinf, :isfinite, :isnan, :one)
+const operationsUnary_angle          = (:+, :-, :mod2pi, :abs, :abs2, :√, :∛, :floor, :ceil, :trunc, :zero) # rem2pi has to be treated separately
+const operationsUnary_scalar         = (:inv, :sign, :signbit, :isinteger, :isinf, :isfinite, :isnan,:one)
 const operationsBetweenAngles_angle  = (:+, :-)
 const operationsBetweenAngles_scalar = (:/, :\)
 const operationsAngleScalar          = (:*, :/, :÷, :^, :%, :rem, :mod, :fld, :cld)
@@ -28,9 +28,9 @@ const operationsTrigoInverse         = (operationsTrigoInvRad..., operationsTrig
 const operationsInverse              = (operationsTrigoInverse..., :anlge)
 const operationsTrigoOther           = (:sinpi, :cospi, :sinc, :cosc, :sincos)
 const operationsOther                = (:rem2pi, :round, :isapprox)
-const operationsArrays               = (:min, :max)
 
 const operations = unique((operationsUnary_angle...,
+                           operationsUnary_scalar...,
                            operationsBetweenAngles_angle...,
                            operationsBetweenAngles_scalar...,
                            operationsAngleScalar...,
@@ -65,62 +65,84 @@ for angularUnits in (:Degrees, :Radians)
   angularRange = Symbol(angularUnits,"Range")
 
   @eval begin
-          # Singleton angular units
-          export $angularUnits
+        # Singleton angular units
+        export $angularUnits
 
-          struct $angularUnits{T} <: Angle{T where T<:Real}
-            val::T
-          end
+        struct $angularUnits{T} <: Angle{T where T<:Real}
+          val::T
+        end
 
-          $angularUnits(a::Nothing) = nothing
+        $angularUnits(a::Nothing) = nothing
 
-          convert(::Type{T}               , x::$angularUnits{T}) where {T<:Real}         = x.val
-          convert(::Type{$angularUnits{T}}, x::$angularUnits{S}) where {T<:Real,S<:Real} = $angularUnits(T(x.val))
-          convert(::Type{$angularUnits{T}}, x::S               ) where {T<:Real,S<:Real} = $angularUnits(T(x    ))
+        convert(::Type{T}               , x::$angularUnits{T}) where {T<:Real}         = x.val
+        convert(::Type{$angularUnits{T}}, x::$angularUnits{S}) where {T<:Real,S<:Real} = $angularUnits(T(x.val))
+        convert(::Type{$angularUnits{T}}, x::S               ) where {T<:Real,S<:Real} = $angularUnits(T(x    ))
 
-          promote_rule(::Type{$angularUnits{T}},::Type{$angularUnits{S}}) where {T<:Real,S<:Real} = $angularUnits{promote_type(T,S)}
+        promote_rule(::Type{$angularUnits{T}},::Type{$angularUnits{S}}) where {T<:Real,S<:Real} = $angularUnits{promote_type(T,S)}
 
-          # Pretty printing
-          Base.show(io::IO,                     x::$angularUnits{T}) where {T} = print(io, x.val, asciiRepresentation[$(String(angularUnits))])
-          Base.show(io::IO, ::MIME"text/plain", x::$angularUnits{T}) where {T} = print(io, "Angle in ",$(String(angularUnits)),"{$T}: ", x, "\n")
-          Base.show(io::IO, ::MIME"text/html" , x::$angularUnits{T}) where {T} = print(io, x.val, htmlRepresentation[$(String(angularUnits))] ," [<code>",$(String(angularUnits)),"{$T}</code>]")
+        # Pretty printing
+        Base.show(io::IO,                     x::$angularUnits{T}) where {T} = print(io, x.val, asciiRepresentation[$(String(angularUnits))])
+        Base.show(io::IO, ::MIME"text/plain", x::$angularUnits{T}) where {T} = print(io, "Angle in ",$(String(angularUnits)),"{$T}: ", x, "\n")
+        Base.show(io::IO, ::MIME"text/html" , x::$angularUnits{T}) where {T} = print(io, x.val, htmlRepresentation[$(String(angularUnits))] ," [<code>",$(String(angularUnits)),"{$T}</code>]")
 
-          # Ranges
-          export $angularRange
+        # Ranges
+        export $angularRange
 
-          struct $angularRange{T} <: AngleRange{T where T<:Real}
-            r::S where {S<:AbstractRange{T}}
-          end
+        struct $angularRange{T} <: AngleRange{T where T<:Real}
+          r::S where {S<:AbstractRange{T}}
+        end
 
-          $angularUnits(a::T) where {T<:AbstractArray{S,D} where {S<:Real,D}} = ($angularUnits).(a)
+        $angularUnits(a::T) where {T<:AbstractArray{S,D} where {S<:Real,D}} = ($angularUnits).(a)
 
-          # $angularUnits(r::S) where {S <: AbstractRange{T} where T <: Real} = ($angularUnits).(r)
-          $angularUnits(r::S) where {S <: AbstractRange{<:Real}} = $angularRange{eltype(r)}(r)
+        # $angularUnits(r::S) where {S <: AbstractRange{T} where T <: Real} = ($angularUnits).(r)
+        $angularUnits(r::S) where {S <: AbstractRange{<:Real}} = $angularRange{eltype(r)}(r)
 
-          function iterate(rangeOfAngle::$angularRange{T}) where {T<:Real}
-             result = iterate(rangeOfAngle.r)
-             result ≠ nothing ? (return ($angularUnits(result[1]), result[2])) : (return nothing)
-          end
+        function iterate(rangeOfAngle::$angularRange{T}) where {T<:Real}
+           result = iterate(rangeOfAngle.r)
+           result ≠ nothing ? (return ($angularUnits(result[1]), result[2])) : (return nothing)
+        end
 
-          function iterate(rangeOfAngle::$angularRange{T}, state) where {T<:Real}
-            result = iterate(rangeOfAngle.r, state)
-            result ≠ nothing ? (return ($angularUnits(result[1]), result[2])) : (return nothing)
-          end
+        function iterate(rangeOfAngle::$angularRange{T}, state) where {T<:Real}
+          result = iterate(rangeOfAngle.r, state)
+          result ≠ nothing ? (return ($angularUnits(result[1]), result[2])) : (return nothing)
+        end
 
-          step(rangeOfAngle::$angularRange{T}) where {T<:Real} = $angularUnits(step(rangeOfAngle.r))
+        step(rangeOfAngle::$angularRange{T}) where {T<:Real} = $angularUnits(step(rangeOfAngle.r))
 
-          Base.eltype(        ::Type{$angularRange{T}}) where {T<:Real} = $angularUnits{T}
-          Base.IteratorSize(  ::Type{$angularRange{T}}) where {T<:Real} = Base.IteratorSize(AbstractRange{Real})
-          Base.IteratorEltype(::Type{$angularRange{T}}) where {T<:Real} = Base.HasEltype()
-          Base.length( rangeOfAngle::$angularRange{T} ) where {T<:Real} = length(rangeOfAngle.r)
-          Base.size(   rangeOfAngle::$angularRange{T} ) where {T<:Real} = size(rangeOfAngle.r)
+        Base.eltype(        ::Type{$angularRange{T}}) where {T<:Real} = $angularUnits{T}
+        Base.IteratorSize(  ::Type{$angularRange{T}}) where {T<:Real} = Base.IteratorSize(AbstractRange{Real})
+        Base.IteratorEltype(::Type{$angularRange{T}}) where {T<:Real} = Base.HasEltype()
+        Base.length( rangeOfAngle::$angularRange{T} ) where {T<:Real} = length(rangeOfAngle.r)
+        Base.size(   rangeOfAngle::$angularRange{T} ) where {T<:Real} = size(rangeOfAngle.r)
 
-          # New methods for the operations.
+        end
 
-          *(r::R            ,  ::Type{$angularUnits}) where {R<:AbstractRange{<:Real}} = $angularUnits(r)
-          *(r::R            , x::$angularUnits      ) where {R<:AbstractRange{<:Real}} = $angularUnits(r * x.val)
-          *(x::$angularUnits, r::R                  ) where {R<:AbstractRange{<:Real}} = $angularUnits(x.val * r)
+  # New methods for the operations.
 
+  ## Arithmetic operators
+  ### Unary operators
+  for op in operationsUnary_angle
+    @eval $op(x::$angularUnits{T}) where {T<:Real} = $angularUnits($op(x.val))
+  end
+
+  ### Operations with scalars
+  for op in operationsAngleScalar
+    @eval $op(x::$angularUnits, scalar::Real) = $angularUnits($op(x.val, scalar))
+  end
+
+  for op in operationsScalarAngle
+    @eval $op(scalar::Real, x::$angularUnits) = $angularUnits($op(scalar,x.val))
+  end
+
+  @eval zero(::Type{$angularUnits{T}}) where {T<:Real} = $angularUnits(T(0))
+  @eval round( x::$angularUnits, r::RoundingMode) = $angularUnits(round( x.val,r))
+  @eval isapprox(x::$angularUnits, y::$angularUnits; kvarag...) = isapprox(x.val, y.val; kvarag...)
+
+  @eval begin
+        *(m::M            ,  ::Type{$angularUnits}) where {M<:AbstractArray{S,D} where {S<:Real,D}} = ($angularUnits).(m)
+        *(r::R            ,  ::Type{$angularUnits}) where {R<:AbstractRange{<:Real}} = $angularUnits(r)
+        *(r::R            , x::$angularUnits      ) where {R<:AbstractRange{<:Real}} = $angularUnits(r * x.val)
+        *(x::$angularUnits, r::R                  ) where {R<:AbstractRange{<:Real}} = $angularUnits(x.val * r)
         end
 end
 
@@ -133,25 +155,15 @@ convert(::Type{Degrees{T}}, x::Radians) where {T<:Real} = rad2deg(x)
 promote_rule(::Type{Degrees{T}},::Type{Radians{S}}) where {T<:Real,S<:Real} = Radians{promote_type(T,S)}
 
 # New methods for the operations
+rem2pi(x::Degrees, r::RoundingMode) = Degrees(rem2pi(deg2rad(x.val),r))
+rem2pi(x::Radians, r::RoundingMode) = Radians(rem2pi(x.val,r))
 
 ## Arithmetic operators
 ### Unary operators
-for op in operationsUnary_angle
-  @eval $op(x::T) where {T<:Angle} = T($op(x.val))
-end
-
-zero(::Type{Angle{T}}) where {T<:Real} = T(0)
-
 for op in operationsUnary_scalar
   @eval $op(x::T) where {T<:Angle} = $op(x.val)
 end
-
 one(::Type{Angle{T}}) where {T<:Real} = T(1)
-
-rem2pi(x::T, r::RoundingMode) where {T<:Angle} = T(rem2pi(x.val,r))
-round( x::T, r::RoundingMode) where {T<:Angle} = T(round( x.val,r))
-
-isapprox(x::T, y::T; kvarag...) where {T<:Angle} = isapprox(x.val, y.val; kvarag...)
 isapprox(x::Angle, y::Angle; kvarag...) = isapprox(promote(x,y)...; kvarag...)
 
 ### Operations between angles producing an angle
@@ -164,15 +176,6 @@ end
 for op in operationsBetweenAngles_scalar
   @eval $op(x::T, y::T) where {T<:Angle         } = $op(x.val, y.val)
   @eval $op(x::T, y::S) where {T<:Angle,S<:Angle} = $op(promote(x,y)...)
-end
-
-### Operations with scalars
-for op in operationsAngleScalar
-  @eval $op(x::T, scalar::Real) where {T<:Angle} = T($op(x.val, scalar))
-end
-
-for op in operationsScalarAngle
-  @eval $op(scalar::Real, x::T) where {T<:Angle} = T($op(scalar,x.val))
 end
 
 ## Comparison (between angles) operations
