@@ -1,21 +1,25 @@
 # isdefined(Base, :__precompile__) && __precompile__()
 
-baremodule SIBaseUnits
+# module SIBaseUnitsPkg
 
-using Base
+# using ..Units: SIUnits
+
 import Base: +, -, *, /, \, ^, inv
 import Base: show
-export SIBaseUnit, scalar, meter, m, kilogram, kg, seconds, s, ampere, A, kelvin, K, mole, mol, candela
+
+export SIBaseUnit, SIBaseUnits, scalar, meter, m, kilogram, kg, seconds, s, ampere, A, kelvin, K, mole, mol, candela
 export +, -, *, /, \, ^
 
-eval(x) = Core.eval(Mod, x)
-include(p) = Base.include(Mod, p)
+# eval(x) = Core.eval(Mod, x)
+# include(p) = Base.include(Mod, p)
 
 const UnitTuple = NTuple{7,Int}
 
-struct SIBaseUnit{m,kg,s,A,K,mol,cd}
+# abstract type SIBaseUnits <: SIUnits end
+struct SIBaseUnit{m,kg,s,A,K,mol,cd} #<: SIBaseUnits
     SIBaseUnit{m,kg,s,A,K,mol,cd}() where {m,kg,s,A,K,mol,cd} = isa((m,kg,s,A,K,mol,cd), NTuple{7,Int}) ? new() : error("An SIBaseUnit{m,kg,s,A,K,mol,cd} can only be constructed with integers")
 end
+# struct SIBaseUnit{m<:Int,kg<:Int,s<:Int,A<:Int,K<:Int,mol<:Int,cd<:Int} expects m <: Type{Int} where typeof(m)::DataType NOT isa(m,Int)
 SIBaseUnit(m::Int,kg::Int,s::Int,A::Int,K::Int,mol::Int,cd::Int) = SIBaseUnit{m,kg,s,A,K,mol,cd}()
 
 const scalar         = SIBaseUnit(0,0,0,0,0,0,0)
@@ -101,7 +105,19 @@ macro generateshowcode(suffix, tupleOfUnits...) # ... denotes a variable number 
 
 end
 
-function show(io::IO,u::SIBaseUnit{m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i}) where {m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i}
+function show(io::IO,::SIBaseUnit{0,0,0,0,0,0,0})
+   print("(scalar)")
+end
+
+function show(io::IO,::SIBaseUnit{m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i}) where {m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i}
+   @generateshowcode("_i", m,kg,s,A,K,mol,cd)
+end
+
+function show(io::IO,::Type{SIBaseUnit{0,0,0,0,0,0,0}})
+   print("(scalar)")
+end
+
+function show(io::IO,::Type{SIBaseUnit{m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i}}) where {m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i}
    @generateshowcode("_i", m,kg,s,A,K,mol,cd)
 end
 
@@ -142,4 +158,4 @@ function latexstring(u::SIBaseUnit{m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i}) where {m_i,
 
 end
 
-end
+#end #module

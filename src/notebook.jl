@@ -1,3 +1,44 @@
+# Benchmarking
+
+include("Angles.jl")
+using Main.Angles
+using Statistics
+S = 10
+N = 10000
+t = zeros(Float64,S)
+tref = zeros(Float64,S)
+for i in 1:S
+    s  = 2^i
+
+    m1 = rand(s,s)
+    m2 = rand(s,s)
+    m3 = (m1)deg
+    m4 = (m2)deg
+    @elapsed m1+m2
+    @elapsed m3+m4
+
+    for j in 1:N
+      tref[i] += @elapsed m1+m2
+      t[i]    += @elapsed m3+m4
+    end
+
+    tref[i] /= N
+    t[i] /= N
+
+end
+println(t./tref)
+println(mean(t./tref))
+
+# Results for S=10, N=1000
+# [0.963113, 0.996702, 0.719338, 1.21352, 1.03335, 0.971611, 0.992234, 0.772692, 0.998298, 1.00277]
+# 0.966362453606228
+# Results for S=10, N=10000
+# [0.987338, 0.989298, 0.497516, 1.18991, 0.931941, 0.981512, 1.00617, 1.29759, 1.00667, 0.999558]
+# 0.9887505207007307
+
+include("SIQuantities.jl")
+
+
 # METAPROGRAMMING
 #
 # @eval $(ex) == eval(ex)
@@ -6,97 +47,53 @@
 # AST: (call f x) -> Expr(:call, :f, :x)
 # import Base: x, y	-> AST: (import (: (. Base) (. x) (. y))) -> Expr(:import, (:(:), (:., :Base), (:., :x), (:., :y)))
 
-operations = ("+","-")
+u = :m
+m_i = 5
+sy = Symbol(u,"_i")
+io = stdout
 
-ex1 = :(import Base: +)
-eval(ex1)
-ex2 = :(import Base: $(:+))
-eval(ex2)
-ex3 = :(import Base: $(join(operations,", ")))
-eval(ex3)
-ex4 = :(import Base: +,-)
-eval(ex4)
-ex5 = :(import Base: $((:+,:-)...))
-eval(ex5)
-ex6 = :(import Base: $(:+),$(:-))
-eval(ex6)
+@eval $(println(u,"=")) # -- m=
+@macroexpand @eval $(println(u,"=")) # --> :((Base.Core).eval(Main, println(u, "=")))
+@eval $(quote println(u,"=") end) # --> m=
+@macroexpand @eval $(quote println(u,"=") end)  # --> :((Base.Core).eval(Main, $(Expr(:copyast, :($(QuoteNode(quote
+                                                #         #= none:1 =#
+                                                #         println(u, "=")
+                                                #     end)))))))
 
-macroexpand(Main, quote @eval import Base: +, - end)
-macroexpand(Main, quote @eval $(ex4) end)
-macroexpand(Main, quote @eval $(ex6) end)
+@eval $(println(u,"=",sy)) # --> m=m_i
+@macroexpand @eval $(println(u,"=",sy)) # :((Base.Core).eval(Main, println(u, "=", sy)))
+@eval $(quote println(u,"=",$sy) end) # m=5
+@macroexpand @eval $(quote println(u,"=",$sy) end) # :((Base.Core).eval(Main, (Core._expr)(:block, $(QuoteNode(:(#= none:1 =#))), (Core._expr)(:call, :println, :u, "=", sy))))
+@eval $(quote println(u,"=",$(Symbol(u,"_i"))) end) # m=5
+@macroexpand @eval $(quote println(u,"=",$(Symbol(u,"_i"))) end)
 
-import Base: $((:+,:-))
-
-# struct Degrees{T<:Number} <: Angle
-#   val::T
-# end
-#
-# convert(::Type{T}         , x::Degrees{T}) where {T<:Number}           = x.val
-# convert(::Type{Degrees{T}}, x::Degrees{S}) where {T<:Number,S<:Number} = Degrees(T(x.val))
-#
-# promote_rule(::Type{Degrees{T}},::Type{Degrees{S}}) where {T<:Number,S<:Number} = Degrees{promote_type(T,S)}
-#
-# struct Radians{T<:Number} <: Angle
-#   val::T
-# end
-#
-# convert(::Type{T}         , x::Radians{T}) where {T<:Number}           = x.val
-# convert(::Type{Radians{T}}, x::Radians{S}) where {T<:Number,S<:Number} = Radians(T(x.val))
-#
-# promote_rule(::Type{Radians{T}},::Type{Radians{S}}) where {T<:Number,S<:Number} = Radians{promote_type(T,S)}
-
-#
-# for op in (:+, :-)
-#   @eval $op(x::Radians, y::Radians) = Radians($op(x.val, y.val))
-#   @eval $op(x::Degrees, y::Degrees) = Degrees($op(x.val, y.val))
-# end
-#
-# for op in (:*, :/, :÷, :^)
-#   @eval $op(x::Radians, scalar::Number) = Radians($op(x.val, scalar))
-#   @eval $op(x::Degrees, scalar::Number) = Degrees($op(x.val, scalar))
-# end
-#
-# for op in (:*, :\)
-#   @eval $op(scalar::Number, x::Radians) = Radians($op(scalar,x.val))
-#   @eval $op(scalar::Number, x::Degrees) = Degrees($op(scalar,x.val))
-# end
-
-abstract type Angle end
-
-asciiRepresentation = Dict("Degrees"=>"º"   , "Radians"=>"rad")
- htmlRepresentation = Dict("Degrees"=>"&deg", "Radians"=>"rad")
-
-for angularUnits in (:Degrees, :Radians)
-  @eval begin
-          export $angularUnits
-
-          struct $angularUnits{T<:Real} <: Angle
-            val::T
-          end
-
-          convert(::Type{T}               , x::$angularUnits{T}) where {T<:Real}           = x.val
-          convert(::Type{$angularUnits{T}}, x::$angularUnits{S}) where {T<:Real,S<:Real} = $angularUnits(T(x.val))
-
-          promote_rule(::Type{$angularUnits{T}},::Type{$angularUnits{S}}) where {T<:Real,S<:Real} = $angularUnits{promote_type(T,S)}
-
-          # Pretty printing
-          Base.show(io::IO,                     x::$angularUnits{T}) where {T} = print(io, x.val, asciiRepresentation[$(String(angularUnits))])
-          Base.show(io::IO, ::MIME"text/plain", x::$angularUnits{T}) where {T} = print(io, "Angle in ",$(String(angularUnits)),"{$T}: ", x, "\n")
-          Base.show(io::IO, ::MIME"text/html" , x::$angularUnits{T}) where {T} = print(io, x.val, htmlRepresentation[$(String(angularUnits))] ," [<code>",$(String(angularUnits)),"{$T}</code>]")
-        end
+# IMPORTANT: The error is to put the @eval in the for-block of a FUNCTION! Remeber macros are expanded at compilation time not at runtime.s
+function f(io::IO, m_i::Int, kg_i::Int, s_i::Int, A_i::Int, K_i::Int, mol_i::Int, cd_i::Int)
+  for u in (:m,:kg,:s,:A,:K,:mol,:cd)
+      print(@macroexpand @eval println(io,u,"="))
+      print("   ")
+      print(@macroexpand @eval println($io,$u,"="))
+      print("   ")
+      println(u)
+      @eval println($io,u,"=")
+  end
 end
 
-f(x::Real) = Base.Math.atand(x)
-atand(x::Real) = test.Degrees(f(x))
-atand(0)
+# Expressions can be cascaded in an array of expressions and then converted to a tuple for execution. Maybe a begin-block or the ";" could do the trick also.
+extup = (:(x = 3),:(y = 5))
+ex = quote $(extup...) end
+eval(ex)
 
-using Main.Angles
-x = Degrees(5)
-y = Degrees(5.0)
-z = Radians(0.03)
+exarr = [:(x = 3),:(y = 5)]
+push!(exarr, :(x+y))
+ex = quote $(tuple(exarr...)...) end
+eval(ex)
 
-x + y
-x + z
+u = :m
+m = 5
+:(print(u))
+:(print($u))
+
 
 # isdefined(Base, :__precompile__) && __precompile__()
 
@@ -113,8 +110,12 @@ include(p) = Base.include(Mod, p)
 #   y::S
 # end
 
-struct teststruct{t}
-  teststruct{T}() where T = isa(T, Int) ? new() : error("teststruct can only be constructed with integers")
+# struct teststruct{T}
+#   teststruct{T}() where T = isa(T, Int) ? new() : error("teststruct can only be constructed with integers")
+# end
+
+struct teststruct{m<:Int,kg<:Int,s<:Int,A<:Int,K<:Int,mol<:Int,cd<:Int}
+  # teststruct{T}() where T = isa(T, Int) ? new() : error("teststruct can only be constructed with integers")
 end
 # (::Type{teststruct{t}})() where {t<:Int} = teststruct{t}()
 # (::Type{teststruct{t}})() where {t>:Int} = errormessage("Error")
@@ -137,82 +138,25 @@ include(p) = Base.include(Mod, p)
 
 teststruct = Tuple{Vararg{Int,7}}
 
-
 end
 
 using Main.TestModule
 teststruct(0,0,0,0,0,0,0)
 
-
-include("./Satcoms/src/SIBaseUnits.jl")
-using Main.SIBaseUnits
-Main.SIBaseUnits.SIBaseUnit{0,0}()
-
-
-include("SIBaseUnits.jl")
-include("SIQuantities.jl")
-using SIBaseUnits
-using SIQuantities
-
-u = :m
-m_i = 5
-sy = Symbol(u,"_i")
-io = stdout
-
-@eval $(println(u,"=")) # -- m=
-@macroexpand @eval $(println(u,"=")) # --> :((Base.Core).eval(Main, println(u, "=")))
-@eval $(quote println(u,"=") end) # --> m=
-@macroexpand @eval $(quote println(u,"=") end)  # --> :((Base.Core).eval(Main, $(Expr(:copyast, :($(QuoteNode(quote
-                                                #         #= none:1 =#
-                                                #         println(u, "=")
-                                                #     end)))))))
-
-@eval $(println(u,"=",sy)) # --> m=m_i
-@macroexpand @eval $(println(u,"=",sy)) # :((Base.Core).eval(Main, println(u, "=", sy)))
-@eval $(quote println(u,"=",$sy) end) # m=5
-@macroexpand @eval $(quote println(u,"=",$sy) end) # :((Base.Core).eval(Main, (Core._expr)(:block, $(QuoteNode(:(#= none:1 =#))), (Core._expr)(:call, :println, :u, "=", sy))))
-@eval $(quote println(u,"=",$(Symbol(u,"_i"))) end) # m=5
-@macroexpand @eval $(quote println(u,"=",$(Symbol(u,"_i"))) end)
-
-function f(io::IO, m_i::Int, kg_i::Int, s_i::Int, A_i::Int, K_i::Int, mol_i::Int, cd_i::Int)
-  for u in (:m,:kg,:s,:A,:K,:mol,:cd)
-      print(@macroexpand @eval println(io,u,"="))
-      print("   ")
-      print(@macroexpand @eval println($io,$u,"="))
-      print("   ")
-      println(u)
-      @eval println($io,u,"=")
-  end
-end
-
-extup = (:(x = 3),:(y = 5))
-ex = quote $(extup...) end
-eval(ex)
-
-exarr = [:(x = 3),:(y = 5)]
-push!(exarr, :(x+y))
-ex = quote $(tuple(exarr...)...) end
-eval(ex)
-
-u = :m
-m = 5
-:(print(u))
-:(print($u))
-
-include("./Angles.jl")
-using Main.Angles
-x = Degrees(1:2:10)
-step(x)
-
 # Usage in REPL:
-include("./src/Angles.jl")
+include("Angles.jl")
 using Main.Angles
 for op in Main.Angles.operationsInverse
   @eval $op(x::Real) = Main.Angles.$op(x)
 end
 
-# :((Base.Core).eval(Main, (Core._expr)(:block, $(QuoteNode(:(#= none:1 =#))), (Core._expr)(:call, :println, :u, "=", sy))))
-# :((Base.Core).eval(Main, (Core._expr)(:block, $(QuoteNode(:(#= none:1 =#))), (Core._expr)(:call, :println, :u, "=", Symbol(u, "_i")))))
+############################
+
+using Units
+SIQuantity(0, scalar)
+Units.SIQuantitiesPkg.SIQuantity(0, Units.SIBaseUnitsPkg.scalar)
+SIQuanity(x::T,u::SIBaseUnit) where {T<:Number} = Units.SIQuantitiesPkg.SIQuanity{T,typeof(u)}(x)
+Units.SIQuantitiesPkg.ScalarQuantity(0)
 
 limit = 1e7
 @time [^(SIUnit{1,2,3,4,5,6,7,8,9}(),20) for i=1:limit]

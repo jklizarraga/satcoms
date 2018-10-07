@@ -18,7 +18,7 @@ const operationsUnary_angle          = (:+, :-, :mod2pi, :abs, :abs2, :√, :∛
 const operationsUnary_scalar         = (:inv, :sign, :signbit, :isinteger, :isinf, :isfinite, :isnan,:one)
 const operationsBetweenAngles_angle  = (:+, :-)
 const operationsBetweenAngles_scalar = (:/, :\)
-const operationsAngleScalar          = (:*, :/, :÷, :^, :%, :rem, :mod, :fld, :cld)
+const operationsAngleScalar          = (:*, :/, :÷, :^, :%, :mod, :fld, :cld) # :rem already covered by :%
 const operationsScalarAngle          = (:*, :\)
 const operationsComparison           = (Symbol("=="), :≠, :<, :≤, :>, :≥, :isless)
 const operationsTrigonometric        = ( :sin,  :cos,  :tan,  :csc,  :sec,  :cot)
@@ -55,11 +55,11 @@ import Base: deg2rad, rad2deg
 import Base: convert, promote_rule, show
 import Base: iterate, IteratorSize, IteratorEltype, eltype, length, size, step
 
-abstract type Angle{T<:Real} end
+abstract type Angle{T<:Real} <: Number end
 abstract type AngleRange{T<:Real} end
 
-asciiRepresentation = Dict("Degrees"=>"º"   , "Radians"=>"rad")
- htmlRepresentation = Dict("Degrees"=>"&deg", "Radians"=>"rad")
+const asciiRepresentation = Dict("Degrees"=>"º"   , "Radians"=>"rad")
+const  htmlRepresentation = Dict("Degrees"=>"&deg", "Radians"=>"rad")
 
 for angularUnits in (:Degrees, :Radians)
   angularRange = Symbol(angularUnits,"Range")
