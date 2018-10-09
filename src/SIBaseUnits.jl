@@ -15,36 +15,64 @@ export +, -, *, /, \, ^
 
 const UnitTuple = NTuple{7,Int}
 
-# abstract type SIBaseUnits <: SIUnits end
-struct SIBaseUnit{m,kg,s,A,K,mol,cd} #<: SIBaseUnits
+struct SIBaseUnit{m,kg,s,A,K,mol,cd}
     SIBaseUnit{m,kg,s,A,K,mol,cd}() where {m,kg,s,A,K,mol,cd} = isa((m,kg,s,A,K,mol,cd), NTuple{7,Int}) ? new() : error("An SIBaseUnit{m,kg,s,A,K,mol,cd} can only be constructed with integers")
 end
-# struct SIBaseUnit{m<:Int,kg<:Int,s<:Int,A<:Int,K<:Int,mol<:Int,cd<:Int} expects m <: Type{Int} where typeof(m)::DataType NOT isa(m,Int)
-SIBaseUnit(m::Int,kg::Int,s::Int,A::Int,K::Int,mol::Int,cd::Int) = SIBaseUnit{m,kg,s,A,K,mol,cd}()
+SIBaseUnit(m::Int,kg::Int,s::Int,A::Int,K::Int,mol::Int,cd::Int) = SIBaseUnit{m,kg,s,A,K,mol,cd}
 
-const scalar         = SIBaseUnit(0,0,0,0,0,0,0)
-const meter    = m   = SIBaseUnit(1,0,0,0,0,0,0)
-const kilogram = kg  = SIBaseUnit(0,1,0,0,0,0,0)
-const second   = s   = SIBaseUnit(0,0,1,0,0,0,0)
-const ampere   = A   = SIBaseUnit(0,0,0,1,0,0,0)
-const kelvin   = K   = SIBaseUnit(0,0,0,0,1,0,0)
-const mole     = mol = SIBaseUnit(0,0,0,0,0,1,0)
-const candela  = cd  = SIBaseUnit(0,0,0,0,0,0,1)
+const scalar         = SIBaseUnit{0,0,0,0,0,0,0}
+const meter    = m   = SIBaseUnit{1,0,0,0,0,0,0}
+const kilogram = kg  = SIBaseUnit{0,1,0,0,0,0,0}
+const second   = s   = SIBaseUnit{0,0,1,0,0,0,0}
+const ampere   = A   = SIBaseUnit{0,0,0,1,0,0,0}
+const kelvin   = K   = SIBaseUnit{0,0,0,0,1,0,0}
+const mole     = mol = SIBaseUnit{0,0,0,0,0,1,0}
+const candela  = cd  = SIBaseUnit{0,0,0,0,0,0,1}
 
-# sibaseunit_tuple(::Type{SIBaseUnit{m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i}}) where {m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i} = (m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i)
-# sibaseunit_tuple(     ::SIBaseUnit{m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i} ) where {m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i} = (m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i)
-# As working with SIBaseUnits is equivalent to work with the corresponding tuples, then all the operations are defied over the tuples.
+siArrayBase    = ["m","kg","s","A","K","mol","cd"]
+suffixVariable = [""  ,"1","2"]
+suffixTuple    = ["_i","1","2"]
 
-+(x::SIBaseUnit{m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i},y::SIBaseUnit{m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i}) where {m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i} = x # x and y are singletons therefore x==y.
--(x::SIBaseUnit{m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i},y::SIBaseUnit{m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i}) where {m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i} = x # x and y are singletons therefore x==y.
+# Generate variables siArray, siArray1, siArray2, siTuple, siTuple1, siTuple2, siUnit, siUnit1, siUnit2
+for i in 1:length(suffixVariable)
+   siArrayX, siTupleX, siUnitX  = Symbol("siArray"*suffixVariable[i]), Symbol("siTuple"*suffixVariable[i]), Symbol("siUnit" *suffixVariable[i])
+   @eval $siArrayX = siArrayBase.*$(suffixTuple[i])
+   @eval $siTupleX = tuple(Symbol.($siArrayX)...)
+   @eval $siUnitX  = :(SIBaseUnit{$(($siTupleX)...)})
+end
 
-*(x::SIBaseUnit{m1,kg1,s1,A1,K1,mol1,cd1},y::SIBaseUnit{m2,kg2,s2,A2,K2,mol2,cd2}) where {m1,kg1,s1,A1,K1,mol1,cd1,m2,kg2,s2,A2,K2,mol2,cd2} = SIBaseUnit{m1+m2,kg1+kg2,s1+s2,A1+A2,K1+K2,mol1+mol2,cd1+cd2}() # x and y are singletons therefore x==y.
-/(x::SIBaseUnit{m1,kg1,s1,A1,K1,mol1,cd1},y::SIBaseUnit{m2,kg2,s2,A2,K2,mol2,cd2}) where {m1,kg1,s1,A1,K1,mol1,cd1,m2,kg2,s2,A2,K2,mol2,cd2} = SIBaseUnit{m1-m2,kg1-kg2,s1-s2,A1-A2,K1-K2,mol1-mol2,cd1-cd2}() # x and y are singletons therefore x==y.
-\(x::SIBaseUnit{m1,kg1,s1,A1,K1,mol1,cd1},y::SIBaseUnit{m2,kg2,s2,A2,K2,mol2,cd2}) where {m1,kg1,s1,A1,K1,mol1,cd1,m2,kg2,s2,A2,K2,mol2,cd2} = SIBaseUnit{m2-m1,kg2-kg1,s2-s1,A2-A1,K2-K1,mol2-mol1,cd2-cd1}() # x and y are singletons therefore x==y.
+for op in (:+,:-)
+   @eval $op(x::Type{$siUnit},y::Type{$siUnit}) where {$(siTuple...)} = $siUnit
+   @eval $op(x::Type{$siUnit},y::$siUnit      ) where {$(siTuple...)} = $siUnit
+   @eval $op(x::$siUnit      ,y::Type{$siUnit}) where {$(siTuple...)} = $siUnit
+   @eval $op(x::$siUnit      ,y::$siUnit      ) where {$(siTuple...)} = $siUnit
+end
 
-^(::SIBaseUnit{m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i}, i::Integer) where {m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i} = SIBaseUnit{m_i*i,kg_i*i,s_i*i,A_i*i,K_i*i,mol_i*i,cd_i*i}()
+siTuple1Tuple2 = (siTuple1...,siTuple2...)
 
-inv(::SIBaseUnit{m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i}) where {m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i} = SIBaseUnit{-m_i,-kg_i,-s_i,-A_i,-K_i,-mol_i,-cd_i}()
+resultExpression(siTupleArray::Array{String,1}) = Meta.parse("SIBaseUnit{"*join(siTupleArray, ",")*"}")
+
+siUnitResult = Dict( :* => resultExpression(siArray1 .* "+" .* siArray2), # -> :((m1 + m2, kg1 + kg2, s1 + s2, A1 + A2, K1 + K2, mol1 + mol2, cd1 + cd2))
+                     :/ => resultExpression(siArray1 .* "-" .* siArray2),
+                     :\ => resultExpression(siArray2 .* "-" .* siArray1))
+
+for op in (:*, :/, :\)
+   @eval $op( ::Type{$siUnit1}, ::Type{$siUnit2}) where {$(siTuple1Tuple2...)} = $(siUnitResult[op])
+   @eval $op( ::Type{$siUnit1},y::$siUnit2      ) where {$(siTuple1Tuple2...)} = $(siUnitResult[op])
+   @eval $op(x::$siUnit1      , ::Type{$siUnit2}) where {$(siTuple1Tuple2...)} = $(siUnitResult[op])
+   @eval $op(x::$siUnit1      ,y::$siUnit2      ) where {$(siTuple1Tuple2...)} = $(siUnitResult[op])
+end
+
+siUnitResult = resultExpression(siArray.*"*i")
+@eval ^(::Type{$siUnit}, i::Integer) where {$(siTuple...)} = $siUnitResult
+@eval ^(     ::$siUnit , i::Integer) where {$(siTuple...)} = $siUnitResult
+siUnitResult = resultExpression("Int(".*siArray.*"*i)")
+@eval ^(::Type{$siUnit}, i::Rational) where {$(siTuple...)} = $siUnitResult
+@eval ^(     ::$siUnit , i::Rational) where {$(siTuple...)} = $siUnitResult
+
+siUnitResult = resultExpression("-".*siArray)
+@eval inv(::Type{$siUnit}) where {$(siTuple...)} = $siUnitResult
+@eval inv(     ::$siUnit ) where {$(siTuple...)} = $siUnitResult
 
 export joule, coulomb, volt, farad, newton, ohm, hertz, siemens, watt, pascal
 # Definition of the SI derived units:
@@ -60,13 +88,14 @@ const watt       = joule/second
 const pascal     = newton/meter^2
 
 # Pretty Printing - Text
-
+#
 # This is an auxiliary function used by the show() function.
 # This function takes the number::Int and gets its string representation using repr().
 # It then applies to each caracter in the string the function in the Do-Block using the map() function.
 # The function in the Do-Block changes each character for its equivalent in UNICODE superscript form.
 # (https://docs.julialang.org/en/v1/base/strings/#Base.repr-Tuple{Any})
 # (https://docs.julialang.org/en/v1.0.0/manual/functions/#Do-Block-Syntax-for-Function-Arguments-1)
+
 tosuperscript(number::Int) = map(repr(number)) do c
    c  ==  '-' ? '\u207b' :
    c  ==  '1' ? '\u00b9' :
@@ -94,32 +123,19 @@ macro generateshowcode(suffix, tupleOfUnits...) # ... denotes a variable number 
 
    return quote $(tuple(expressionsArray...)...) end
 
-   # The code above generates the code under when called with @generateshowcode("_i", m,kg,s,A,K,mol,cd)
-   #   m_i ≠ 0 && print(io, "m"  , (  m_i == 1 ? ' ' : tosuperscript(  m_i)))
-   #  kg_i ≠ 0 && print(io, "kg" , ( kg_i == 1 ? ' ' : tosuperscript( kg_i)))
-   #   s_i ≠ 0 && print(io, "s"  , (  s_i == 1 ? ' ' : tosuperscript(  s_i)))
-   #   A_i ≠ 0 && print(io, "A"  , (  A_i == 1 ? ' ' : tosuperscript(  A_i)))
-   #   K_i ≠ 0 && print(io, "K"  , (  K_i == 1 ? ' ' : tosuperscript(  K_i)))
-   # mol_i ≠ 0 && print(io, "mol", (mol_i == 1 ? ' ' : tosuperscript(mol_i)))
-   #  cd_i ≠ 0 && print(io, "cd" , ( cd_i == 1 ? ' ' : tosuperscript( cd_i)))
-
-end
-
-function show(io::IO,::SIBaseUnit{0,0,0,0,0,0,0})
-   print("(scalar)")
-end
-
-function show(io::IO,::SIBaseUnit{m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i}) where {m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i}
-   @generateshowcode("_i", m,kg,s,A,K,mol,cd)
 end
 
 function show(io::IO,::Type{SIBaseUnit{0,0,0,0,0,0,0}})
    print("(scalar)")
 end
 
+show(io::IO,::SIBaseUnit{0,0,0,0,0,0,0}) = show(io, Type{SIBaseUnit{0,0,0,0,0,0,0}})
+
 function show(io::IO,::Type{SIBaseUnit{m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i}}) where {m_i,kg_i,s_i,A_i,K_i,mol_i,cd_i}
    @generateshowcode("_i", m,kg,s,A,K,mol,cd)
 end
+
+@eval show(io::IO,::SIBaseUnit{$siTuple}) where {$(siTuple...)} = show(io, Type{SIBaseUnit{$siTuple}})
 
 macro generatenumeratoranddenominatorcode(suffix, tupleOfUnits...)
    expressionsArray = []
