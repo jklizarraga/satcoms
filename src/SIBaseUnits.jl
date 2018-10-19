@@ -41,6 +41,8 @@ for i in 1:length(suffixVariable)
    @eval $siUnitX  = :(SIBaseUnit{$(($siTupleX)...)})
 end
 
+resultExpression(siTupleArray::Array{String,1}) = Meta.parse("SIBaseUnit{"*join(siTupleArray, ",")*"}")
+
 for op in (:+,:-)
    @eval $op(x::Type{$siUnit},y::Type{$siUnit}) where {$(siTuple...)} = $siUnit
    @eval $op(x::Type{$siUnit},y::$siUnit      ) where {$(siTuple...)} = $siUnit
@@ -49,8 +51,6 @@ for op in (:+,:-)
 end
 
 siTuple1Tuple2 = (siTuple1...,siTuple2...)
-
-resultExpression(siTupleArray::Array{String,1}) = Meta.parse("SIBaseUnit{"*join(siTupleArray, ",")*"}")
 
 siUnitResult = Dict( :* => resultExpression(siArray1 .* "+" .* siArray2), # -> :((m1 + m2, kg1 + kg2, s1 + s2, A1 + A2, K1 + K2, mol1 + mol2, cd1 + cd2))
                      :/ => resultExpression(siArray1 .* "-" .* siArray2),
@@ -76,16 +76,16 @@ siUnitResult = resultExpression("-".*siArray)
 
 export joule, coulomb, volt, farad, newton, ohm, hertz, siemens, watt, pascal
 # Definition of the SI derived units:
-const joule      = kilogram*meter^2/second^2
-const coulomb    = ampere*second
-const volt       = joule/coulomb
-const farad      = coulomb^2/joule
-const newton     = kilogram*meter/second^2
-const ohm        = volt/ampere
-const hertz      = inv(second)
-const siemens    = inv(ohm)
-const watt       = joule/second
-const pascal     = newton/meter^2
+const joule   = J  = kilogram*meter^2/second^2
+const coulomb = C  = ampere*second
+const volt    = V  = joule/coulomb
+const farad   = F  = coulomb^2/joule
+const newton  = N  = kilogram*meter/second^2
+const ohm     = Ω  = volt/ampere
+const hertz   = Hz = inv(second)
+const siemens = S  = inv(ohm)
+const watt    = W  = joule/second
+const pascal  = Pa = newton/meter^2
 
 # Pretty Printing - Text
 #
@@ -96,7 +96,7 @@ const pascal     = newton/meter^2
 # (https://docs.julialang.org/en/v1/base/strings/#Base.repr-Tuple{Any})
 # (https://docs.julialang.org/en/v1.0.0/manual/functions/#Do-Block-Syntax-for-Function-Arguments-1)
 
-tosuperscript(number::Int) = map(repr(number)) do c
+tosuperscript(number::Union{Integer,AbstractFloat}) = map(repr(number)) do c
    c  ==  '-' ? '\u207b' :
    c  ==  '1' ? '\u00b9' :
    c  ==  '2' ? '\u00b2' :
@@ -108,10 +108,12 @@ tosuperscript(number::Int) = map(repr(number)) do c
    c  ==  '8' ? '\u2078' :
    c  ==  '9' ? '\u2079' :
    c  ==  '0' ? '\u2070' :
-   # c  ==  '+' ? '\u207a' :
-   # c  ==  '.' ? '\u22c5' :
+   c  ==  '+' ? '\u207a' :
+   c  ==  '.' ? '\u22c5' :
    error("Unexpected Chatacter")
 end
+
+tosuperscript(number::Rational) = tosuperscript(numerator(number)) * '/' * tosuperscript(denominator(number))
 
 macro generateshowcode(suffix, tupleOfUnits...) # ... denotes a variable number of arguments.
    expressionsArray = []

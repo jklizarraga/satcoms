@@ -15,7 +15,7 @@ eval(x) = Core.eval(Mod, x)
 include(p) = Base.include(Mod, p)
 
 const operationsUnary_angle          = (:+, :-, :mod2pi, :abs, :abs2, :√, :∛, :floor, :ceil, :trunc, :zero) # rem2pi has to be treated separately
-const operationsUnary_scalar         = (:inv, :sign, :signbit, :isinteger, :isinf, :isfinite, :isnan,:one)
+const operationsUnary_scalar         = (:inv, :sign, :signbit, :isinteger, :isinf, :isfinite, :isnan, :one)
 const operationsBetweenAngles_angle  = (:+, :-)
 const operationsBetweenAngles_scalar = (:/, :\)
 const operationsAngleScalar          = (:*, :/, :÷, :^, :%, :mod, :fld, :cld) # :rem already covered by :%
@@ -85,14 +85,16 @@ for angularUnits in (:Degrees, :Radians)
         Base.show(io::IO, ::MIME"text/plain", x::$angularUnits{T}) where {T} = print(io, "Angle in ",$(String(angularUnits)),"{$T}: ", x, "\n")
         Base.show(io::IO, ::MIME"text/html" , x::$angularUnits{T}) where {T} = print(io, x.val, htmlRepresentation[$(String(angularUnits))] ," [<code>",$(String(angularUnits)),"{$T}</code>]")
 
+        # Support to arrays
+
+        $angularUnits(a::T) where {T<:AbstractArray{S,D} where {S<:Real,D}} = ($angularUnits).(a)
+
         # Ranges
         export $angularRange
 
         struct $angularRange{T} <: AngleRange{T where T<:Real}
           r::S where {S<:AbstractRange{T}}
         end
-
-        $angularUnits(a::T) where {T<:AbstractArray{S,D} where {S<:Real,D}} = ($angularUnits).(a)
 
         # $angularUnits(r::S) where {S <: AbstractRange{T} where T <: Real} = ($angularUnits).(r)
         $angularUnits(r::S) where {S <: AbstractRange{<:Real}} = $angularRange{eltype(r)}(r)
