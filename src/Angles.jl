@@ -96,8 +96,13 @@ for angularUnits in (:Degrees, :Radians)
           r::S where {S<:AbstractRange{T}}
         end
 
+        # Possible improvement
+        # struct $angularRange{T} <: AngleRange{T where T<:Real}
+        #   r::AbstractRange{T}
+        # end
+
         # $angularUnits(r::S) where {S <: AbstractRange{T} where T <: Real} = ($angularUnits).(r)
-        $angularUnits(r::S) where {S <: AbstractRange{<:Real}} = $angularRange{eltype(r)}(r)
+        $angularUnits(r::AbstractRange{<:Real}) = $angularRange{eltype(r)}(r)
 
         function iterate(rangeOfAngle::$angularRange{T}) where {T<:Real}
            result = iterate(rangeOfAngle.r)
@@ -110,6 +115,7 @@ for angularUnits in (:Degrees, :Radians)
         end
 
         step(rangeOfAngle::$angularRange{T}) where {T<:Real} = $angularUnits(step(rangeOfAngle.r))
+        getindex(rangeOfAngle::$angularRange{T}, inds...) where {T<:Real} = $angularUnits(getindex(rangeOfAngle.r, inds...))
 
         Base.eltype(        ::Type{$angularRange{T}}) where {T<:Real} = $angularUnits{T}
         Base.IteratorSize(  ::Type{$angularRange{T}}) where {T<:Real} = Base.IteratorSize(AbstractRange{Real})

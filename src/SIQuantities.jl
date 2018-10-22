@@ -34,15 +34,15 @@ struct SIQuantity{T<:Real,U<:SIBaseUnit} <: Number
     val::T
     SIQuantity(x::T,::Type{U}) where {T<:Real,U<:SIBaseUnit} = new{T,U}(x)
 end
-SIQuantity(x::T,u::U) where {T<:Real,U<:SIBaseUnit} = SIQuantity(x, typeof(u))
+SIQuantity(x::Real,u::SIBaseUnit) = SIQuantity(x, typeof(u))
 
-SIScalar(x::T)   where {T<:Real} = SIQuantity(x,scalar)
-SIQuantity(x::T) where {T<:Real} = SIScalar(x)
+  SIScalar(x::Real) = SIQuantity(x,scalar)
+SIQuantity(x::Real) = SIScalar(x)
 
 SIBaseUnit{m,kg,s,A,K,mol,cd}(x::Real) where {m,kg,s,A,K,mol,cd} = SIQuantity(x,SIBaseUnit{m,kg,s,A,K,mol,cd})
 
-*(x::Real, ::Type{U}) where {U<:SIBaseUnit} = SIQuantity(x,U)
-*(x::Real, u::SIBaseUnit) = SIQuantity(x,typeof(u))
+*(x::Real,  ::Type{U}) where {U<:SIBaseUnit} = SIQuantity(x,U)
+*(x::Real, u::U      ) where {U<:SIBaseUnit} = SIQuantity(x,U)
 
 for op in operationsUnary_siQuantity
     @eval $op(x::SIQuantity{T,U}) where {T<:Real,U<:SIBaseUnit} = SIQuantity($op(x.val),U)
@@ -99,14 +99,38 @@ end
 # Support to arrays
 
 SIQuantity(a::T,::Type{U}) where {T<:AbstractArray{S,D} where {S<:Real,D},U<:SIBaseUnit} = SIQuantity.(a,U)
-SIBaseUnit{m,kg,s,A,K,mol,cd}(a::T) where {m,kg,s,A,K,mol,cd, T<:AbstractArray{S,D} where {S<:Real,D}} = SIQuantity.(a,SIBaseUnit{m,kg,s,A,K,mol,cd})
+SIBaseUnit{m,kg,s,A,K,mol,cd}(a::T) where {m,kg,s,A,K,mol,cd, T<:AbstractArray{S,D} where {S<:Real,D}} = SIQuantity.(a,SIBaseUnit(m,kg,s,A,K,mol,cd))
 *(a::T,  ::Type{U} ) where {T<:AbstractArray{S,D} where {S<:Real,D},U<:SIBaseUnit} = SIQuantity.(a,U)
 *(a::T, u::U       ) where {T<:AbstractArray{S,D} where {S<:Real,D},U<:SIBaseUnit} = SIQuantity.(a,U)
 
-# export SIQuantityRange
-#
-# struct SIQuantityRange{T<:Real, U<:SIBaseUnit}
-#     r::S where {S<:AbstractRange{T}}
-# end
+import Base: iterate, IteratorSize, IteratorEltype, eltype, length, size, step, getindex
+export SIQuantityRange
+
+struct SIQuantityRange{T<:Real, U<:SIBaseUnit}
+    r::AbstractRange{T}
+    SIQuantityRange(r::AbstractRange{T},::Type{U}) where {T<:Real,U<:SIBaseUnit} = new{T,U}(r)
+end
+SIQuantityRange(r::AbstractRange{T},u::U) where {T<:Real,U<:SIBaseUnit} = SIQuantityRange(r,U)
+
+SIBaseUnit{m,kg,s,A,K,mol,cd}(r::AbstractRange{<:Real}) where {m,kg,s,A,K,mol,cd} = SIQuantityRange(r,SIBaseUnit(m,kg,s,A,K,mol,cd))
+
+function iterate(rangeOfSIQuantities::SIQuantityRange{T,U}) where {T<:Real,U<:SIBaseUnit}
+    result = iterate(rangeOfSIQuantities.r)
+    result ≠ nothing ? (return (U(result[1]), result[2])) : (return nothing)
+end
+
+function iterate(rangeOfSIQuantities::SIQuantityRange{T,U}, state) where {T<:Real,U<:SIBaseUnit}
+    result = iterate(rangeOfSIQuantities.r, state)
+    result ≠ nothing ? (return (U(result[1]), result[2])) : (return nothing)
+end
+
+step(rangeOfSIQuantities::SIQuantityRange{T,U}) where {T<:Real,U<:SIBaseUnit} = U(step(rangeOfSIQuantities.r))
+getindex(rangeOfSIQuantities::SIQuantityRange{T,U}, inds...) where {T<:Real,U<:SIBaseUnit} = U(getindex(rangeOfSIQuantities.r, inds...))
+
+Base.eltype(                   ::Type{SIQuantityRange{T,U}}) where {T<:Real,U<:SIBaseUnit} = SIQuantityRange{T,U}
+Base.IteratorSize(             ::Type{SIQuantityRange{T,U}}) where {T<:Real,U<:SIBaseUnit} = Base.IteratorSize(AbstractRange{Real})
+Base.IteratorEltype(           ::Type{SIQuantityRange{T,U}}) where {T<:Real,U<:SIBaseUnit} = Base.HasEltype()
+Base.length(rangeOfSIQuantities::SIQuantityRange{T,U}      ) where {T<:Real,U<:SIBaseUnit} = length(rangeOfSIQuantities.r)
+Base.size(  rangeOfSIQuantities::SIQuantityRange{T,U}      ) where {T<:Real,U<:SIBaseUnit} = size(rangeOfSIQuantities.r)
 
 # end

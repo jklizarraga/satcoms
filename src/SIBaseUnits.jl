@@ -15,7 +15,7 @@ export +, -, *, /, \, ^
 
 const UnitTuple = NTuple{7,Int}
 
-struct SIBaseUnit{m,kg,s,A,K,mol,cd}
+struct SIBaseUnit{m,kg,s,A,K,mol,cd} <: Unit
     SIBaseUnit{m,kg,s,A,K,mol,cd}() where {m,kg,s,A,K,mol,cd} = isa((m,kg,s,A,K,mol,cd), NTuple{7,Int}) ? new() : error("An SIBaseUnit{m,kg,s,A,K,mol,cd} can only be constructed with integers")
 end
 SIBaseUnit(m::Int,kg::Int,s::Int,A::Int,K::Int,mol::Int,cd::Int) = SIBaseUnit{m,kg,s,A,K,mol,cd}
